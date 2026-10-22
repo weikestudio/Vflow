@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<title>Vflow 工作台</title>
+<style>
+  :root{
+    --bg:#0e1116; --panel:#171b22; --panel2:#1d222b; --line:#272d38;
+    --fg:#e6e9ef; --dim:#8b94a5; --accent:#2dd4bf; --accent2:#f59e0b;
+    --done:#2dd4bf; --todo:#3a4252;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:var(--bg);color:var(--fg);
+    font:14px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+  a{color:var(--accent);text-decoration:none}
+
+  header{display:flex;align-items:center;gap:14px;padding:14px 20px;
+    border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:10}
+  header h1{margin:0;font-size:17px;letter-spacing:.5px}
+  header .root{color:var(--dim);font-size:12px;font-family:ui-monospace,monospace}
+  .spacer{flex:1}
+  button{background:var(--panel2);color:var(--fg);border:1px solid var(--line);
+    border-radius:7px;padding:7px 13px;font-size:13px;cursor:pointer}
+  button:hover{border-color:var(--accent);color:var(--accent)}
+  button.primary{background:var(--accent);color:#06231f;border-color:var(--accent);font-weight:600}
+  button.primary:hover{opacity:.88;color:#06231f}
+
+  main{display:flex;height:calc(100vh - 56px)}
+  #board{flex:1;overflow:auto;padding:16px}
+  #side{width:460px;min-width:460px;border-left:1px solid var(--line);
+    background:var(--panel);overflow:auto;padding:16px}
+
+  .cols{display:flex;gap:12px;align-items:flex-start;min-height:100%}
+  .col{background:var(--panel);border:1px solid var(--line);border-radius:10px;
+    width:212px;min-width:212px;padding:10px}
+  .col.active{border-color:var(--accent)}
+  .col h3{margin:0 0 2px;font-size:13px;display:flex;align-items:center;gap:6px}
+  .col h3 .k{font-family:ui-monospace,monospace;color:var(--accent);font-size:11px}
+  .col .skill{color:var(--dim);font-size:11px;font-family:ui-monospace,monospace;margin-bottom:10px}
+  .col .n{float:right;color:var(--dim);font-size:11px}
+
+  .card{background:var(--panel2);border:1px solid var(--line);border-radius:8px;
+    padding:9px 11px;margin-bottom:8px;cursor:pointer}
+  .card:hover{border-color:var(--accent)}
+  .card.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
+  .card .t{font-size:13px;margin-bottom:5px;word-break:break-all}
+  .card .m{color:var(--dim);font-size:11px;display:flex;justify-content:space-between}
+  .bar{height:4px;background:var(--todo);border-radius:2px;margin-top:7px;overflow:hidden}
+  .bar i{display:block;height:100%;background:var(--done)}
+
+  .ph{color:var(--dim);font-size:12px;padding:6px 0}
+
+  #side h2{margin:0 0 3px;font-size:15px}
+  #side .meta{color:var(--dim);font-size:12px;margin-bottom:14px}
+  .stage{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:7px;
+    cursor:pointer;border:1px solid transparent}
+  .stage:hover{background:var(--panel2)}
+  .stage .box{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--todo);flex:none}
+  .stage.on .box{background:var(--done);border-color:var(--done)}
+  .stage.on .nm{color:var(--dim)}
+  .stage .nm{flex:1}
+  .stage .sk{color:var(--dim);font-size:11px;font-family:ui-monospace,monospace}
+  .stage .badge{font-size:10px;padding:1px 6px;border-radius:20px;border:1px solid var(--line);color:var(--dim)}
+  .stage .badge.f{color:var(--accent);border-color:var(--accent)}
+
+  .tabs{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 8px}
+  .tab{font-size:12px;padding:4px 10px;border:1px solid var(--line);border-radius:20px;
+    cursor:pointer;color:var(--dim)}
+  .tab.on{background:var(--accent);color:#06231f;border-color:var(--accent)}
+  #doc{background:var(--panel2);border:1px solid var(--line);border-radius:9px;
+    padding:14px;font-size:13px;overflow:auto}
+  #doc h4,#doc h5,#doc h6{margin:14px 0 6px;color:var(--accent)}
+  #doc h4:first-child{margin-top:0}
+  #doc pre{background:#0b0e13;border:1px solid var(--line);border-radius:6px;
+    padding:10px;overflow:auto;font-size:12px}
+  #doc code{font-family:ui-monospace,monospace}
+  #doc table{border-collapse:collapse;width:100%;margin:8px 0;font-size:12px}
+  #doc td{border:1px solid var(--line);padding:5px 7px}
+  #doc hr{border:0;border-top:1px solid var(--line);margin:12px 0}
+  #doc blockquote{margin:6px 0;padding-left:10px;border-left:2px solid var(--accent2);color:var(--dim)}
+  #doc .check{padding:2px 0}
+  #doc .check.on{color:var(--dim);text-decoration:line-through}
+  #doc .empty{color:var(--dim)}
+</style>
+</head>
+<body>
+<header>
+  <h1>Vflow 工作台</h1>
+  <span class="root" id="root"></span>
+  <span class="spacer"></span>
+  <button onclick="openPath('')">打开目录</button>
+  <button onclick="showProfile()">账号设定</button>
+  <button class="primary" onclick="newProject()">+ 新项目</button>
+</header>
+
+<main>
+  <div id="board"><div class="cols" id="cols"></div></div>
+  <aside id="side"><div class="ph">选一个项目看细节</div></aside>
+</main>
+
+<script>
+let STATE = null, SEL = null, DOC = null, TAB = null, SKILL = {};
+
+async function api(path, opts){
+  const r = await fetch(path, opts);
+  return r.json();
+}
+
+async function load(){
+  STATE = await api('/api/state');
+  document.getElementById('root').textContent = STATE.root;
+  SKILL = Object.fromEntries(STATE.stages.map(s => [s.key, s.skill]));
+  renderBoard();
+  if (SEL) open(SEL);
+}
+
+function renderBoard(){
+  const cols = STATE.stages.map(s => {
+    const items = STATE.projects.filter(p => p.current.key === s.key);
+    return `<div class="col ${items.length?'active':''}">
+      <h3><span class="k">${s.key}</span>${s.name}<span class="n">${items.length}</span></h3>
+      <div class="skill">${SKILL[s.key]||''}</div>
+      ${items.map(card).join('') || '<div class="ph">空</div>'}
+    </div>`;
+  }).join('');
+  const done = STATE.projects.filter(p => p.current.key === 'done');
+  cols += `<div class="col ${done.length?'active':''}">
+    <h3><span class="k">✓</span>已发布<span class="n">${done.length}</span></h3>
+    <div class="skill">—</div>
+    ${done.map(card).join('') || '<div class="ph">空</div>'}
+  </div>`;
+  document.getElementById('cols').innerHTML = cols;
+}
+
+function card(p){
+  const pct = Math.round(p.progress / 7 * 100);
+  return `<div class="card ${SEL===p.slug?'sel':''}" onclick="open('${p.slug}')">
+    <div class="t">${esc(p.title)}</div>
+    <div class="m"><span>${p.created||p.slug.slice(0,8)}</span><span>${p.progress}/7</span></div>
+    <div class="bar"><i style="width:${pct}%"></i></div>
+  </div>`;
+}
+
+async function open(slug){
+  SEL = slug;
+  DOC = await api('/api/project/' + encodeURIComponent(slug));
+  renderBoard();
+  const p = STATE.projects.find(x => x.slug === slug) || {title:slug, created:'', progress:0};
+  if (!TAB || !DOC.files[TAB]) TAB = DOC.stages[0].file;
+  let h = `<h2>${esc(p.title)}</h2>
+    <div class="meta">${esc(slug)} · 进度 ${p.progress}/7 · 当前 ${p.current?p.current.name:''}</div>
+    <div>${DOC.stages.map(s => `
+      <div class="stage ${s.done?'on':''}" onclick="toggle('${s.key}',${!s.done})">
+        <div class="box"></div>
+        <div class="nm">${s.key} ${s.name}</div>
+        ${s.hasFile?`<span class="badge f">有稿</span>`:''}
+        <div class="sk">${s.skill}</div>
+      </div>`).join('')}</div>
+    <div class="tabs">${DOC.stages.map(s =>
+      `<span class="tab ${TAB===s.file?'on':''}" onclick="tab('${s.file}')">${s.name}</span>`).join('')}</div>
+    <div id="doc">${DOC.files[TAB]}</div>
+    <div style="margin-top:14px"><button onclick="openPath('projects/${encodeURIComponent(slug)}')">打开项目目录</button></div>`;
+  document.getElementById('side').innerHTML = h;
+}
+
+function tab(f){ TAB = f; open(SEL); }
+
+async function toggle(key, done){
+  await api('/api/project/' + encodeURIComponent(SEL) + '/stage', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({key, done})
+  });
+  await load();
+}
+
+async function newProject(){
+  const name = prompt('新项目短名（例：AI-Skill-是什么）');
+  if (!name) return;
+  const r = await api('/api/projects', {method:'POST',
+    headers:{'Content-Type':'application/json'}, body: JSON.stringify({name})});
+  if (r.ok){ SEL = r.slug; TAB = null; await load(); }
+  else alert(r.error || '创建失败');
+}
+
+async function openPath(p){
+  await api('/api/open', {method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({path:p})});
+}
+
+async function showProfile(){
+  const r = await api('/api/profile');
+  document.getElementById('side').innerHTML =
+    `<h2>账号设定</h2><div class="meta">profile.md · 所有选题和文案都从这长出来</div>
+     <div id="doc">${r.content}</div>`;
+}
+
+function esc(s){ return (s||'').replace(/[&<>"]/g, c =>
+  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+load();
+</script>
+</body>
+</html>
