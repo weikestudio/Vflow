@@ -51,10 +51,16 @@ def load_words():
                 continue
             if line.startswith("-"):
                 line = line[1:]
+            # 跳过说明性句子（词条清单不会用句号结尾）
+            if "。" in line:
+                continue
             # 去掉「导流类：」「不承诺收益类：」这类分组前缀
             line = re.sub(r"^[^：:]{1,10}[：:]", "", line)
             line = re.sub(r"（[^）]*）", "", line)
-            for w in re.split(r"[、,，\s]+", line):
+            # 只按顿号/逗号切分，不按空格——词条内部可能带空格，
+            # 比如「被 AI 取代」按空格切会把「AI」切成一条独立的红线词，
+            # 之后所有 AI 主题的稿子都会误报。
+            for w in re.split(r"[、,，;；]+", line):
                 w = w.strip()
                 if w and len(w) >= 2 and not w.startswith("（"):
                     table[cur].append(w)

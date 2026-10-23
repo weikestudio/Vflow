@@ -210,9 +210,8 @@ def cmd_list(_args):
 
 
 def cmd_show(args):
-    st = build_state(args.slug)
-    write_state(args.slug, st)
-    return st
+    # 只读：不写盘，避免把手工 set 的 skip / updated 覆盖掉
+    return build_state(args.slug)
 
 
 def cmd_init(args):
@@ -241,6 +240,12 @@ def cmd_set(args):
     st["stages"][args.stage]["status"] = args.status
     st["stages"][args.stage]["updated"] = \
         datetime.now().strftime("%Y-%m-%d %H:%M")
+    # current / progress 是派生字段，改完阶段必须重算，否则一直停在旧值
+    st["current"] = next(
+        (k for k, _, _, _ in STAGES if st["stages"][k]["status"] != "done"),
+        STAGES[-1][0])
+    st["progress"] = sum(1 for s in st["stages"].values()
+                         if s["status"] == "done")
     # 同步 README 勾选框，让人和机器一致
     sync_readme(args.slug, st)
     write_state(args.slug, st)
