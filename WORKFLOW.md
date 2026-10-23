@@ -29,7 +29,7 @@
   │   └─ publish-copy.md  分平台文案
   │
   └─ 阶段7 复盘 ────→ 06-review.md
-      48小时后回填数据，规律写回 STUDIO.md
+      48小时后回填数据，攒够三条证据才写回 profile.md
 ```
 
 ## 能力对照表
@@ -39,13 +39,59 @@
 | 环节 | 调用 | 说明 |
 |---|---|---|
 | 全流程调度 | `vflow` | 判断在哪一阶段、路由、落盘 |
-| 选题与对标 | `vflow-topic` | 三问筛查 + 对标三层筛 + 价值预估 |
+| 选题与对标 | `vflow-topic` | 三问筛查 + 对标三层筛 + 二创边界自检 |
 | 结构框架 | `vflow-outline` | 页面级结构，每页一个角色 |
-| 口播逐字稿 | `vflow-script` | 口语稿 + 流畅度五项自检 |
-| 标题封面开头 | `vflow-package` | 三件套 + 兑现检查 |
-| 发布前检查 | `vflow-check` | 机器风险 + 内容实质 + AI 味 |
+| 口播逐字稿 | `vflow-script` | 口语稿 + 声音档案对齐 + 流畅度五项自检 |
+| 标题封面开头 | `vflow-package` | 三件套 + 钩子库 + 兑现检查 |
+| 发布前检查 | `vflow-check` | 词表扫描 + 机器风险 + 内容实质 + AI 味 |
 | 生成成片 | `vflow-produce` | HTML deck + TTS + 录屏 + 字幕 |
-| 数据复盘 | `vflow-review` | 分桶归因 + 规律写回 profile |
+| 数据复盘 | `vflow-review` | 分桶归因 + 证据台账 + 钩子数据回填 |
+
+## 资产层（越用越值钱的部分）
+
+| 资产 | 位置 | 怎么攒 |
+|---|---|---|
+| 风格卡 | `assets/voice-card.md` | 放 2–3 篇自己的成稿进 `assets/voice-samples/`，跑 `voice_profile.py build` |
+| 钩子库 | `assets/hooks.md` | 用了就 `hooks.py use`，复盘时 `hooks.py fill` 回填数据 |
+| 敏感词表 | `assets/wordlist.md` | 踩到坑往 `mine` 层加，写清后果 |
+| 证据台账 | `ledger/evidence.md` | 复盘时 `ledger.py add`，攒够三条才准 `promote` |
+
+```bash
+PY=/Users/v1/.workbuddy/binaries/python/envs/default/bin/python
+cd ~/Vflow
+
+# 声音档案：从自己的稿子里提取文风数字，写完比对有没有跑偏
+$PY scripts/voice_profile.py build
+$PY scripts/voice_profile.py show
+$PY scripts/voice_profile.py compare projects/<slug>/03-script.md
+
+# 敏感词扫描（发布前必跑）
+$PY scripts/risk_scan.py projects/<slug>/
+
+# 二创边界：跟对标原稿比，>0.5 就是照搬
+$PY scripts/similarity.py <原稿> <你的稿子>
+
+# 钩子库：挑、记、回填
+$PY scripts/hooks.py best
+$PY scripts/hooks.py use H7 <slug>
+$PY scripts/hooks.py fill H7 <slug> --ret3 48 --finish 31 --verdict 有效
+
+# 证据台账：一条数据不准改默认
+$PY scripts/ledger.py add "观察到的现象" --slug <slug>
+$PY scripts/ledger.py add x --slug <slug> --again E1
+$PY scripts/ledger.py promote E1        # 不够三条会被拒绝
+$PY scripts/ledger.py list
+
+# 项目状态机（唯一真源 .vflow.json）
+$PY scripts/vflow_state.py show <slug>
+$PY scripts/vflow_state.py set <slug> 03 done
+$PY scripts/vflow_state.py archive <slug> 03-script.md
+$PY scripts/vflow_state.py sync <slug> --from 03-script.md
+$PY scripts/vflow_state.py final <slug> --video output/final.mp4
+
+# 可视化工作台
+$PY scripts/workbench.py
+```
 
 可选外接能力（没有就用人工，不要卡住）：
 

@@ -1,6 +1,6 @@
 ---
 name: vflow
-description: 中文内容创作流水线主控入口。做短视频/图文内容的全链路时使用——选题、对标调研、结构框架、口播逐字稿、标题封面开头、发布前检查、生成成片、发布文案、数据复盘。用户提到「做条视频」「开个选题」「写剧本」「口播稿」「封面标题」「发布前检查」「生成视频」「成片」「数据复盘」，或想从零跑一条内容时使用。负责判断当前处在哪一阶段、调用对应阶段能力、并把产出落到数据目录下。
+description: 中文内容创作流水线主控入口。做短视频/图文内容的全链路时使用——选题、对标调研、结构框架、口播逐字稿、标题封面开头、发布前检查、生成成片、发布文案、数据复盘。首次使用、还没有 profile.md 时，先引导使用者建账号设定和声音档案。用户提到「做条视频」「开个选题」「写剧本」「口播稿」「封面标题」「发布前检查」「生成视频」「成片」「数据复盘」「第一次怎么用」「刚装好」，或想从零跑一条内容时使用。负责判断当前处在哪一阶段、调用对应阶段能力、并把产出落到数据目录下。
 ---
 
 # Vflow · 内容创作流水线
@@ -17,21 +17,34 @@ description: 中文内容创作流水线主控入口。做短视频/图文内容
 $VFLOW/
 ├── profile.md              账号设定（人设 / 受众 / 语气 / 平台策略 / 红线）
 ├── WORKFLOW.md             全链路 SOP 与命令速查
-├── pipeline/               各阶段作业模板
+├── pipeline/               各阶段作业模板（新项目从这里复制）
+├── assets/                 跨项目资产
+│   ├── voice-samples/      你自己的成稿样本 → 生成风格卡
+│   ├── voice-card.md       风格卡（自动提取的文风数字）
+│   ├── hooks.md            钩子库（九类，带使用数据）
+│   └── wordlist.md         敏感词表（四层，可维护）
+├── ledger/evidence.md      证据台账（观察攒够三条才准改成默认）
 ├── projects/<slug>/        每条内容一个目录
-│   ├── 01-topic.md         选题卡
-│   ├── 02-outline.md       结构框架
-│   ├── 03-script.md        口播逐字稿
-│   ├── 04-package.md       标题 / 封面文字 / 开头 3 秒
-│   ├── 05-check.md         发布前检查记录
-│   ├── publish-copy.md     分平台发布文案
-│   ├── 06-review.md        发布后数据复盘
+│   ├── .vflow.json         项目状态唯一真源（阶段、版本、最终版指针）
+│   ├── 01-topic.md … 07    各阶段产出
+│   ├── drafts/             过程稿，带版本号，永不覆盖
 │   ├── deck/               成片工程（HTML 幻灯片）
 │   ├── assets/             素材：封面、BGM、配图
-│   └── output/             成片
-├── assets/                 跨项目复用：字体、BGM、封面模板
-└── scripts/                开项目、仪表盘
+│   └── output/             成片（final-*.mp4 是交付版）
+└── scripts/                开项目、状态机、工作台、各种自检脚本
 ```
+
+项目状态**只认 `.vflow.json`**。别靠猜文件在不在——工作台、脚本、Skill 都读它。
+
+```bash
+python3 $VFLOW/scripts/vflow_state.py show <slug>        # 看状态
+python3 $VFLOW/scripts/vflow_state.py set <slug> 03 done # 推阶段（同步勾选框）
+python3 $VFLOW/scripts/vflow_state.py archive <slug> 03-script.md   # 归档当前版本
+python3 $VFLOW/scripts/vflow_state.py sync <slug> --from 03-script.md  # 改了上游，谁要跟着改
+python3 $VFLOW/scripts/vflow_state.py final <slug> --video output/final.mp4
+```
+
+**版本规矩**：主干文件永远是最新版，改之前 `archive` 一份到 `drafts/`。`output/` 里 `final-*` 是唯一交付指针。项目少的时候感觉不到，攒到二十条就会乱。
 
 slug 规则：`YYYYMMDD-中文短名`，例如 `20261022-skill是什么`。
 
@@ -43,6 +56,52 @@ slug 规则：`YYYYMMDD-中文短名`，例如 `20261022-skill是什么`。
 4. **三个确认点必须停**：选题卡、结构框架、成片交付。这三处要让使用者点头再往下走。
 5. **平台差异从头贯穿。** 抖音和小红书不是同一条内容换标题。
 6. **不贩卖焦虑。** 不写"不学就完了""你会被淘汰"。减焦虑的正确做法是拆掉前提，不是给安慰。
+7. **写稿前读声音档案。** 照实测数字写，别照规则写——规则写出来像 AI，数字写出来像你。
+8. **一条数据不改默认。** 观察先记进台账，攒够三条可比证据再升级。反例出现就降级。
+9. **不自动发布。** 流水线终点是可发布包，不是替使用者点发送。这条是安全边界，也是对外可讲的信任点。
+
+---
+
+## 资产层（会越用越值钱的部分）
+
+这几样东西不是文档，是**有结构的资产**，每条内容都在给它们加数据：
+
+| 资产 | 在哪 | 谁写 | 谁读 |
+|---|---|---|---|
+| 风格卡 | `assets/voice-card.md` | 从你自己的成稿自动提取 | 写剧本、写文案前必读 |
+| 钩子库 | `assets/hooks.md` | 用了就记，复盘回填数据 | 包装阶段挑开头 |
+| 敏感词表 | `assets/wordlist.md` | 踩到坑就往 `mine` 层加 | 检查阶段先扫一遍 |
+| 证据台账 | `ledger/evidence.md` | 复盘时记观察 | 决定要不要改 profile |
+
+常用命令：
+
+```bash
+python3 scripts/voice_profile.py build            # 生成风格卡
+python3 scripts/voice_profile.py compare <文件>    # 这篇跑偏没有
+python3 scripts/risk_scan.py projects/<slug>/     # 敏感词扫描
+python3 scripts/similarity.py <原稿> <改写稿>      # 二创越界没有
+python3 scripts/hooks.py best                     # 哪类钩子对我有效
+python3 scripts/ledger.py list                    # 攒了几条证据
+```
+
+---
+
+## 首次使用（没有 profile.md 时先走这里）
+
+开工前先看 `$VFLOW/profile.md` 在不在。**不在 = 第一次用**，先引导使用者把它建起来，不要凭空假设人设、不要跳过。
+
+三步，**一次只问一个**，别一口气甩八个问题：
+
+1. **账号设定**：你是谁 / 做什么方向 / 内容给谁看 / 他们的卡点在哪 / 想要什么语气 / 主平台 / 出镜方式。
+   问完按 `skills/_shared/profile-template.md` 的章节骨架生成 profile.md。
+   使用者想自己在终端填：`python3 $VFLOW/scripts/setup.py`
+2. **声音样本**：让他放 2–3 篇**他自己写过**的成稿进 `assets/voice-samples/`（口播稿、公众号正文都行，**AI 生成的不算**），然后 `python3 $VFLOW/scripts/voice_profile.py build`。
+   **这步别省**——没有样本，后面写出来的稿子就没有"像不像他"的判据，只能靠规则，而规则写出来像 AI。
+3. **开第一条**：`bash $VFLOW/scripts/new_project.sh "选题短名"`
+
+看进度：`python3 $VFLOW/scripts/setup.py --check`，或打开工作台看引导卡。
+
+**判断顺序**：profile.md 不在 → 引导填；在但没填完（还是模板）→ 提示补完再开工；都齐了 → 直接进阶段。
 
 ---
 
@@ -92,6 +151,29 @@ bash $VFLOW/scripts/new_project.sh "选题短名"
 脚本会建目录、铺好各阶段模板、打印下一步该干什么。
 
 ---
+
+## 与 dbs-* 的分工
+
+**Vflow 自足**：不装任何 dbs-* 也能跑完整条流水线。这是它能独立分发的前提，别破坏。
+
+三条硬标准：
+
+| | Vflow | dbs-* |
+|---|---|---|
+| **产物** | 必须落文件到 `projects/<slug>/` | 只出分析，不落文件 |
+| **语境** | 只在"做一条内容"时触发 | 通用思考工具，内容只是其中一块 |
+| **深度** | 够用即过的闸口 | 可调用的深挖 |
+
+装了 dbs-* 的话，这四个节点可以做二次深检（可选，不是必须）：
+
+| 节点 | 转用什么 | 什么时候值得转 |
+|---|---|---|
+| 选题 | `dbs-benchmark` / `dbs-jtbd` | 只想找对标不开项目、或要深挖观众动机 |
+| 剧本 | `dbs-resonate` | 逐句找共鸣断点 |
+| 包装 | `dbs-title-cover-intro` | 角度还没定，要开发主线 |
+| 检查 | `dbs-content-risk-check` | 高风险内容要逐句过 |
+
+**反过来不成立**：不要用 dbs-* 替代 Vflow 的阶段。dbs 不落文件，跑了等于没跑。
 
 ## 可选外部能力
 

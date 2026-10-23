@@ -1,203 +1,1059 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="zh-CN">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Vflow 工作台</title>
 <style>
   :root{
-    --bg:#0e1116; --panel:#171b22; --panel2:#1d222b; --line:#272d38;
-    --fg:#e6e9ef; --dim:#8b94a5; --accent:#2dd4bf; --accent2:#f59e0b;
-    --done:#2dd4bf; --todo:#3a4252;
+    --bg:#161616; --panel:#1f1f1f; --panel2:#252525; --line:#333;
+    --text:#e8e8e8; --muted:#9a9a9a; --muted2:#8c8c8c;
+    --accent:#00d4a0; --done:#3ddc97; --warn:#ffb340; --err:#ff6b6b;
+    --preview:#0a0a0a;
+    --h:48px; --left:280px; --right:320px; --timeline:152px;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--fg);
-    font:14px/1.6 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
-  a{color:var(--accent);text-decoration:none}
+  html,body{height:100%}
+  body{
+    margin:0; background:var(--bg); color:var(--text);
+    font-family:-apple-system,"PingFang SC","Microsoft YaHei",sans-serif;
+    font-size:13px; line-height:1.5; overflow:hidden;
+    display:flex; flex-direction:column;
+  }
+  button{font-family:inherit; cursor:pointer; color:var(--text)}
+  ::-webkit-scrollbar{width:9px;height:9px}
+  ::-webkit-scrollbar-thumb{background:#3a3a3a;border-radius:5px}
+  ::-webkit-scrollbar-thumb:hover{background:#4a4a4a}
+  ::-webkit-scrollbar-track{background:transparent}
 
-  header{display:flex;align-items:center;gap:14px;padding:14px 20px;
-    border-bottom:1px solid var(--line);background:var(--panel);position:sticky;top:0;z-index:10}
-  header h1{margin:0;font-size:17px;letter-spacing:.5px}
-  header .root{color:var(--dim);font-size:12px;font-family:ui-monospace,monospace}
+  /* ---------- 顶栏 ---------- */
+  header{
+    height:var(--h); flex:0 0 var(--h);
+    display:flex; align-items:center; padding:0 14px; gap:14px;
+    background:var(--panel); border-bottom:1px solid var(--line);
+  }
+  .brand{display:flex; align-items:baseline; gap:8px; user-select:none}
+  .brand b{font-size:16px; letter-spacing:.5px; color:var(--accent)}
+  .brand span{font-size:12px; color:var(--muted)}
   .spacer{flex:1}
-  button{background:var(--panel2);color:var(--fg);border:1px solid var(--line);
-    border-radius:7px;padding:7px 13px;font-size:13px;cursor:pointer}
-  button:hover{border-color:var(--accent);color:var(--accent)}
-  button.primary{background:var(--accent);color:#06231f;border-color:var(--accent);font-weight:600}
-  button.primary:hover{opacity:.88;color:#06231f}
+  .tbtn{
+    background:var(--panel2); border:1px solid var(--line); color:var(--text);
+    padding:6px 12px; border-radius:6px; font-size:12px;
+  }
+  .tbtn:hover{border-color:var(--accent); color:var(--accent)}
+  .tbtn.primary{background:var(--accent); color:#06342a; border-color:var(--accent); font-weight:600}
+  .tbtn.primary:hover{filter:brightness(1.08); color:#06342a}
 
-  main{display:flex;height:calc(100vh - 56px)}
-  #board{flex:1;overflow:auto;padding:16px}
-  #side{width:460px;min-width:460px;border-left:1px solid var(--line);
-    background:var(--panel);overflow:auto;padding:16px}
+  /* ---------- 主区 ---------- */
+  main{flex:1 1 auto; display:flex; min-height:0}
 
-  .cols{display:flex;gap:12px;align-items:flex-start;min-height:100%}
-  .col{background:var(--panel);border:1px solid var(--line);border-radius:10px;
-    width:212px;min-width:212px;padding:10px}
-  .col.active{border-color:var(--accent)}
-  .col h3{margin:0 0 2px;font-size:13px;display:flex;align-items:center;gap:6px}
-  .col h3 .k{font-family:ui-monospace,monospace;color:var(--accent);font-size:11px}
-  .col .skill{color:var(--dim);font-size:11px;font-family:ui-monospace,monospace;margin-bottom:10px}
-  .col .n{float:right;color:var(--dim);font-size:11px}
+  /* 左栏 */
+  .left{
+    width:var(--left); flex:0 0 var(--left);
+    display:flex; flex-direction:column; background:var(--panel);
+    border-right:1px solid var(--line); min-height:0;
+  }
+  .search{padding:10px; border-bottom:1px solid var(--line)}
+  .search input{
+    width:100%; background:var(--bg); border:1px solid var(--line); color:var(--text);
+    border-radius:6px; padding:7px 10px; font-size:12px; outline:none;
+  }
+  .search input:focus{border-color:var(--accent)}
+  .plist{flex:1 1 auto; overflow:auto; padding:8px}
+  .empty-hint{color:var(--muted); padding:18px 10px; font-size:12px}
+  .card{
+    padding:10px 10px 10px 12px; border-radius:7px; margin-bottom:6px;
+    border-left:3px solid transparent; background:transparent; cursor:pointer;
+    border-top:1px solid transparent; border-right:1px solid transparent; border-bottom:1px solid transparent;
+  }
+  .card:hover{background:var(--panel2)}
+  .card.active{background:var(--panel2); border-left-color:var(--accent)}
+  .card .ct{font-weight:600; font-size:13px; color:var(--text); word-break:break-all}
+  .card .cm{display:flex; justify-content:space-between; align-items:center; margin-top:3px}
+  .card .stage{font-size:12px; color:var(--accent)}
+  .card .date{font-size:11px; color:var(--muted2)}
+  .pbar{display:flex; gap:3px; margin-top:7px}
+  .pbar i{height:4px; flex:1; border-radius:2px; background:#333}
+  .pbar i.done{background:var(--accent)}
+  .pbar i.wip{background:transparent; border:1px solid var(--accent)}
+  .assetbar{
+    flex:0 0 auto; display:flex; border-top:1px solid var(--line); background:var(--panel);
+  }
+  .assetbar button{
+    flex:1; background:transparent; border:0; border-right:1px solid var(--line);
+    padding:9px 4px; font-size:11px; color:var(--muted);
+  }
+  .assetbar button:last-child{border-right:0}
+  .assetbar button:hover{color:var(--accent); background:var(--panel2)}
+  .assetbar button.active{color:var(--accent); background:var(--panel2)}
 
-  .card{background:var(--panel2);border:1px solid var(--line);border-radius:8px;
-    padding:9px 11px;margin-bottom:8px;cursor:pointer}
-  .card:hover{border-color:var(--accent)}
-  .card.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent) inset}
-  .card .t{font-size:13px;margin-bottom:5px;word-break:break-all}
-  .card .m{color:var(--dim);font-size:11px;display:flex;justify-content:space-between}
-  .bar{height:4px;background:var(--todo);border-radius:2px;margin-top:7px;overflow:hidden}
-  .bar i{display:block;height:100%;background:var(--done)}
+  /* 中间 */
+  .center{
+    flex:1 1 auto; display:flex; flex-direction:column; min-width:0; min-height:0;
+    background:var(--bg);
+  }
+  .preview{
+    flex:0 0 auto; background:var(--preview); border-radius:10px; overflow:hidden;
+    margin:14px 14px 0; aspect-ratio:16/9; max-height:34vh;
+    display:flex; align-items:center; justify-content:center; position:relative;
+    border:1px solid var(--line);
+  }
+  .preview video,.preview img{max-width:100%; max-height:100%; display:block}
+  .preview .ph{color:var(--muted); text-align:center; padding:20px}
+  .preview .ph .big{font-size:15px; color:var(--text); margin-bottom:6px}
+  .tabs{
+    flex:0 0 auto; display:flex; gap:4px; padding:10px 14px 0; overflow-x:auto;
+    border-bottom:1px solid var(--line);
+  }
+  .tab{
+    flex:0 0 auto; background:transparent; border:0; border-bottom:2px solid transparent;
+    padding:7px 12px; font-size:12px; color:var(--muted); border-radius:6px 6px 0 0;
+  }
+  .tab:hover{color:var(--text); background:var(--panel)}
+  .tab.active{color:var(--accent); border-bottom-color:var(--accent); background:var(--panel)}
+  .content{
+    flex:1 1 auto; overflow:auto; padding:16px 18px 28px; min-height:0;
+  }
+  .content.muted-view{color:var(--muted)}
+  #assetView{display:none; flex:1 1 auto; overflow:auto; padding:16px 18px 28px; min-height:0}
+  .md h1{font-size:19px; margin:.6em 0 .4em; border-bottom:1px solid var(--line); padding-bottom:.2em}
+  .md h2{font-size:16px; margin:.7em 0 .35em}
+  .md h3,.md h4,.md h5,.md h6{font-size:14px; margin:.6em 0 .3em; color:#dcdcdc}
+  .md p{margin:.5em 0}
+  .md ul,.md ol{margin:.4em 0; padding-left:1.4em}
+  .md li{margin:.18em 0}
+  .md code{background:#2a2a2a; padding:1px 5px; border-radius:4px; font-size:12px;
+    font-family:ui-monospace,SFMono-Regular,Menlo,monospace; color:#ffd9a0}
+  .md pre{background:#0d0d0d; border:1px solid var(--line); border-radius:8px; padding:12px;
+    overflow:auto; margin:.6em 0}
+  .md pre code{background:none; padding:0; color:#cfe; font-size:12px}
+  .md blockquote{border-left:3px solid var(--accent); margin:.5em 0; padding:4px 12px;
+    color:var(--muted); background:rgba(0,212,160,.05)}
+  .md hr{border:0; border-top:1px solid var(--line); margin:1em 0}
+  .md table{border-collapse:collapse; width:100%; margin:.7em 0; font-size:12px}
+  .md th,.md td{border:1px solid var(--line); padding:6px 10px; text-align:left; vertical-align:top}
+  .md th{background:var(--panel2); color:var(--text); font-weight:600}
+  .md td{color:#d7d7d7}
+  .md .check{margin:.2em 0; color:#cfcfcf}
+  .md .check.on{color:var(--done)}
+  .md .empty{color:var(--muted)}
+  .muted{color:var(--muted)}
+  .err{color:var(--err)}
 
-  .ph{color:var(--dim);font-size:12px;padding:6px 0}
+  /* 右侧 */
+  .right{
+    width:var(--right); flex:0 0 var(--right); overflow:auto;
+    background:var(--panel); border-left:1px solid var(--line); padding:14px; min-height:0;
+  }
+  .right h3{font-size:13px; margin:0 0 4px; color:var(--text)}
+  .rblock{border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:12px; background:var(--bg)}
+  .rrow{display:flex; justify-content:space-between; font-size:12px; margin:5px 0}
+  .rrow .k{color:var(--muted)}
+  .rrow .v{color:var(--text); text-align:right; word-break:break-all}
+  .pill{display:inline-block; padding:1px 8px; border-radius:10px; font-size:11px}
+  .pill.done{background:rgba(61,220,151,.15); color:var(--done)}
+  .pill.wip{background:rgba(0,212,160,.12); color:var(--accent); border:1px solid var(--accent)}
+  .pill.empty{background:#2a2a2a; color:var(--muted)}
+  .pill.skip{background:rgba(255,179,64,.14); color:var(--warn)}
+  .btns{display:flex; flex-wrap:wrap; gap:7px; margin-top:10px}
+  .rbtn{flex:1 1 auto; min-width:120px; background:var(--panel2); border:1px solid var(--line);
+    padding:8px; border-radius:6px; font-size:12px}
+  .rbtn:hover{border-color:var(--accent); color:var(--accent)}
+  .rbtn.accent{background:var(--accent); color:#06342a; border-color:var(--accent); font-weight:600}
+  .rbtn.accent:hover{filter:brightness(1.08); color:#06342a}
+  .chips{display:flex; flex-wrap:wrap; gap:6px; margin-top:6px}
+  .chip{background:var(--panel2); border:1px solid var(--line); border-radius:5px;
+    padding:3px 8px; font-size:11px; color:#cfcfcf}
+  .warnbox{background:rgba(255,179,64,.1); border:1px solid rgba(255,179,64,.4);
+    color:var(--warn); border-radius:6px; padding:8px 10px; font-size:12px; margin-top:8px}
 
-  #side h2{margin:0 0 3px;font-size:15px}
-  #side .meta{color:var(--dim);font-size:12px;margin-bottom:14px}
-  .stage{display:flex;align-items:center;gap:9px;padding:7px 9px;border-radius:7px;
-    cursor:pointer;border:1px solid transparent}
-  .stage:hover{background:var(--panel2)}
-  .stage .box{width:16px;height:16px;border-radius:4px;border:1.5px solid var(--todo);flex:none}
-  .stage.on .box{background:var(--done);border-color:var(--done)}
-  .stage.on .nm{color:var(--dim)}
-  .stage .nm{flex:1}
-  .stage .sk{color:var(--dim);font-size:11px;font-family:ui-monospace,monospace}
-  .stage .badge{font-size:10px;padding:1px 6px;border-radius:20px;border:1px solid var(--line);color:var(--dim)}
-  .stage .badge.f{color:var(--accent);border-color:var(--accent)}
+  /* 时间线 */
+  .timeline{
+    height:var(--timeline); flex:0 0 var(--timeline); background:var(--panel);
+    border-top:1px solid var(--line); padding:8px 14px 12px; display:flex; flex-direction:column;
+  }
+  .ruler{display:flex; margin-bottom:6px}
+  .ruler div{flex:1; text-align:center; font-size:11px; color:var(--muted2)}
+  .track-wrap{position:relative; flex:1 1 auto; display:flex; flex-direction:column; justify-content:center}
+  .progress-line{height:3px; background:#2a2a2a; border-radius:2px; margin-bottom:8px; overflow:hidden}
+  .progress-line i{display:block; height:100%; background:var(--accent); width:0}
+  .track{display:flex; gap:8px; height:62px}
+  .seg{
+    flex:1; border-radius:8px; border:1px solid var(--line); background:var(--bg);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
+    cursor:pointer; padding:4px; position:relative; transition:transform .08s ease;
+  }
+  .seg:hover{border-color:#444}
+  .seg .num{font-size:11px; color:var(--muted)}
+  .seg .nm{font-size:12px; color:var(--text)}
+  .seg .dot{width:8px; height:8px; border-radius:50%; background:#3a3a3a}
+  .seg.done{background:rgba(0,212,160,.12)}
+  .seg.done .dot{background:var(--done)}
+  .seg.done .num,.seg.done .nm{color:var(--done)}
+  .seg.wip{border-color:var(--accent)}
+  .seg.wip .dot{background:transparent; border:2px solid var(--accent)}
+  .seg.wip .num,.seg.wip .nm{color:var(--accent)}
+  .seg.current{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; transform:scale(1.05); z-index:2}
+  .seg.current .dot{background:var(--accent)}
+  .seg.skip .dot{background:var(--warn)}
+  .seg.skip .num,.seg.skip .nm{color:var(--warn)}
 
-  .tabs{display:flex;flex-wrap:wrap;gap:6px;margin:16px 0 8px}
-  .tab{font-size:12px;padding:4px 10px;border:1px solid var(--line);border-radius:20px;
-    cursor:pointer;color:var(--dim)}
-  .tab.on{background:var(--accent);color:#06231f;border-color:var(--accent)}
-  #doc{background:var(--panel2);border:1px solid var(--line);border-radius:9px;
-    padding:14px;font-size:13px;overflow:auto}
-  #doc h4,#doc h5,#doc h6{margin:14px 0 6px;color:var(--accent)}
-  #doc h4:first-child{margin-top:0}
-  #doc pre{background:#0b0e13;border:1px solid var(--line);border-radius:6px;
-    padding:10px;overflow:auto;font-size:12px}
-  #doc code{font-family:ui-monospace,monospace}
-  #doc table{border-collapse:collapse;width:100%;margin:8px 0;font-size:12px}
-  #doc td{border:1px solid var(--line);padding:5px 7px}
-  #doc hr{border:0;border-top:1px solid var(--line);margin:12px 0}
-  #doc blockquote{margin:6px 0;padding-left:10px;border-left:2px solid var(--accent2);color:var(--dim)}
-  #doc .check{padding:2px 0}
-  #doc .check.on{color:var(--dim);text-decoration:line-through}
-  #doc .empty{color:var(--dim)}
+  /* 资产视图 */
+  .aview h2{font-size:15px; margin:.2em 0 .6em; color:var(--accent)}
+  .aview .sub{color:var(--muted); font-size:12px; margin-bottom:14px}
+  .acard{border:1px solid var(--line); border-radius:8px; padding:12px; margin-bottom:10px; background:var(--bg)}
+  .acard .hd{display:flex; align-items:center; justify-content:space-between; gap:10px}
+  .acard .hd .name{font-weight:600}
+  .acard .hd .score{font-size:18px; font-weight:700; color:var(--accent)}
+  .acard .meta{display:flex; gap:14px; flex-wrap:wrap; font-size:11px; color:var(--muted); margin-top:6px}
+  .acard .tpl{font-size:12px; color:#cfcfcf; margin-top:7px; border-top:1px dashed var(--line); padding-top:7px}
+  .kv{display:flex; justify-content:space-between; font-size:12px; padding:5px 0; border-bottom:1px solid #2a2a2a}
+  .kv:last-child{border-bottom:0}
+  .kv .k{color:var(--muted)}
+  .bar{height:6px; background:#2a2a2a; border-radius:3px; margin-top:4px; overflow:hidden}
+  .bar i{display:block; height:100%; background:var(--accent)}
+  .ok{color:var(--done)} .no{color:var(--warn)}
+
+  /* 首次引导 */
+  .setup .setup-head{margin-bottom:14px}
+  .setup .setup-head .sub{color:var(--muted); font-size:12px; margin-top:3px}
+  .step{display:flex; gap:14px; border:1px solid var(--line); border-radius:9px;
+    padding:13px 14px; margin-bottom:10px; background:var(--bg)}
+  .step.current{border-color:var(--accent); box-shadow:0 0 0 1px var(--accent) inset; background:var(--panel2)}
+  .step-dot{width:26px; height:26px; border-radius:50%; flex:0 0 auto; position:relative;
+    display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:600;
+    border:2px solid var(--accent); color:var(--accent); background:transparent; margin-top:1px}
+  .step-dot.cur{box-shadow:0 0 0 3px rgba(0,212,160,.16)}
+  .step-dot.done{background:var(--accent); color:#06342a; border-color:var(--accent)}
+  .step-dot.done::after{content:""; position:absolute; left:9px; top:5px; width:6px; height:11px;
+    border:solid #06342a; border-width:0 2px 2px 0; transform:rotate(45deg)}
+  .step-body{flex:1 1 auto; min-width:0}
+  .step-title{font-weight:600; font-size:14px; margin-bottom:5px}
+  .step-why{font-size:12px; color:var(--muted); margin-bottom:3px}
+  .step-how{font-size:12px; color:#cfcfcf; margin-bottom:9px}
+  .step-actions{display:flex; gap:8px; flex-wrap:wrap}
+  .setup-foot{display:flex; align-items:center; gap:10px; margin-top:14px;
+    border-top:1px solid var(--line); padding-top:13px}
+  .setup-foot .prog{font-size:12px; color:var(--muted)}
+  .setup-foot .sp{flex:1}
+
+  /* 浮层 */
+  .overlay{position:fixed; inset:0; background:rgba(0,0,0,.55); display:none;
+    align-items:center; justify-content:center; z-index:50}
+  .overlay.show{display:flex}
+  .modal{background:var(--panel); border:1px solid var(--line); border-radius:12px;
+    width:360px; max-width:90vw; padding:20px}
+  .modal h3{margin:0 0 4px; font-size:15px}
+  .modal p{margin:0 0 14px; color:var(--muted); font-size:12px}
+  .modal input{width:100%; background:var(--bg); border:1px solid var(--line); color:var(--text);
+    border-radius:7px; padding:10px; font-size:13px; outline:none}
+  .modal input:focus{border-color:var(--accent)}
+  .modal .row{display:flex; justify-content:flex-end; gap:10px; margin-top:16px}
+  .modal .merr{color:var(--err); font-size:12px; min-height:16px; margin-top:8px}
+
+  /* 提示 */
+  #toast{position:fixed; left:50%; bottom:24px; transform:translateX(-50%) translateY(20px);
+    background:#000; border:1px solid var(--line); color:var(--text); padding:9px 16px;
+    border-radius:8px; font-size:12px; opacity:0; pointer-events:none; transition:.2s; z-index:60; max-width:80vw}
+  #toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
+  #toast.err{border-color:var(--err); color:var(--err)}
+  .loading{color:var(--muted); padding:30px; text-align:center}
 </style>
 </head>
 <body>
-<header>
-  <h1>Vflow 工作台</h1>
-  <span class="root" id="root"></span>
-  <span class="spacer"></span>
-  <button onclick="openPath('')">打开目录</button>
-  <button onclick="showProfile()">账号设定</button>
-  <button class="primary" onclick="newProject()">+ 新项目</button>
-</header>
+  <header>
+    <div class="brand"><b>Vflow</b><span>内容流水线</span></div>
+    <div class="spacer"></div>
+    <button class="tbtn" id="btnGuide">引导</button>
+    <button class="tbtn primary" id="btnNew">新建项目</button>
+    <button class="tbtn" id="btnRefresh">刷新</button>
+    <button class="tbtn" id="btnOpen">打开目录</button>
+  </header>
 
-<main>
-  <div id="board"><div class="cols" id="cols"></div></div>
-  <aside id="side"><div class="ph">选一个项目看细节</div></aside>
-</main>
+  <main>
+    <aside class="left">
+      <div class="search"><input id="search" placeholder="搜索项目…" autocomplete="off"></div>
+      <div class="plist" id="plist"></div>
+      <div class="assetbar" id="assetbar">
+        <button data-asset="hooks">钩子库</button>
+        <button data-asset="wordlist">敏感词表</button>
+        <button data-asset="ledger">证据台账</button>
+        <button data-asset="voice">风格卡</button>
+      </div>
+    </aside>
+
+    <section class="center">
+      <div class="preview" id="preview"></div>
+      <div class="tabs" id="tabs"></div>
+      <div class="content md" id="content"></div>
+      <div id="assetView" class="aview"></div>
+      <div id="setupView" class="aview"></div>
+    </section>
+
+    <aside class="right" id="right"></aside>
+  </main>
+
+  <footer class="timeline">
+    <div class="ruler" id="ruler"></div>
+    <div class="track-wrap">
+      <div class="progress-line"><i id="progFill"></i></div>
+      <div class="track" id="track"></div>
+    </div>
+  </footer>
+
+  <div class="overlay" id="overlay">
+    <div class="modal">
+      <h3>新建项目</h3>
+      <p>给这一条内容起个名字，会生成 YYYYMMDD-名称 的项目目录。</p>
+      <input id="newName" placeholder="例如：中小企业怎么选AI办公平台" autocomplete="off">
+      <div class="merr" id="newErr"></div>
+      <div class="row">
+        <button class="tbtn" id="newCancel">取消</button>
+        <button class="tbtn primary" id="newOk">创建</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="toast"></div>
 
 <script>
-let STATE = null, SEL = null, DOC = null, TAB = null, SKILL = {};
+"use strict";
+const enc = encodeURIComponent;
+const $ = (id)=>document.getElementById(id);
 
-async function api(path, opts){
-  const r = await fetch(path, opts);
-  return r.json();
+/* ---------- 全局状态 ---------- */
+let ROOT = "";
+let PROJECTS = [];
+let currentSlug = null;
+let currentProject = null;
+let selectedStage = null;
+let view = "project";      // 'project' | 'asset' | 'setup'
+let assetType = null;
+let assetsData = null;     // 缓存 /api/assets
+let setupData = null;      // 缓存 /api/setup
+
+/* ---------- 工具 ---------- */
+function escapeHtml(s){
+  return String(s==null?"":s).replace(/&/g,"&amp;").replace(/</g,"&lt;").replace(/>/g,"&gt;").replace(/"/g,"&quot;");
+}
+async function fetchJSON(url, opts){
+  const res = await fetch(url, opts);
+  if(!res.ok){
+    let m=""; try{ m=(await res.text()).slice(0,200); }catch(e){}
+    throw new Error("HTTP "+res.status+(m?(" · "+m):""));
+  }
+  return res.json();
+}
+async function apiPost(url, body){
+  return fetchJSON(url, {method:"POST", headers:{"Content-Type":"application/json"}, body:JSON.stringify(body||{})});
+}
+function toast(msg, isErr){
+  const t = $("toast");
+  t.textContent = msg;
+  t.className = "show" + (isErr?" err":"");
+  clearTimeout(toast._t);
+  toast._t = setTimeout(()=>{ t.className=""; }, 3200);
+}
+const STAGE_STATUS = {
+  done:{label:"已完成", cls:"done"},
+  wip:{label:"进行中", cls:"wip"},
+  empty:{label:"未开始", cls:"empty"},
+  skip:{label:"已跳过", cls:"skip"}
+};
+function statusInfo(s){ return STAGE_STATUS[s] || STAGE_STATUS.empty; }
+
+/* 兼容：stages 可能是对象(01..07)或数组；current 可能是字符串或 {key} */
+function normStages(proj){
+  const s = proj && proj.stages;
+  if(!s) return [];
+  let arr;
+  if(Array.isArray(s)){
+    arr = s.map(x=>({key:x.key, name:x.name, file:x.file, skill:x.skill, status:x.status||"empty", updated:x.updated}));
+  } else {
+    arr = Object.keys(s).sort().map(k=>({key:k, name:s[k].name, file:s[k].file, skill:s[k].skill, status:s[k].status||"empty", updated:s[k].updated}));
+  }
+  return arr;
+}
+function currentKey(proj){
+  const c = proj && proj.current;
+  if(typeof c === "string") return c;
+  if(c && c.key) return c.key;
+  return null;
+}
+function projectBySlug(slug){ return PROJECTS.find(p=>p.slug===slug); }
+
+/* ---------- Markdown 渲染（极简，表格为真 <table>） ---------- */
+function inlineMd(s){
+  s = escapeHtml(s);
+  s = s.replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>");
+  s = s.replace(/`(.+?)`/g, "<code>$1</code>");
+  return s;
+}
+function mdToHtml(src){
+  if(src==null || !String(src).trim()) return '<p class="empty">（还没写）</p>';
+  const lines = String(src).replace(/\r\n?/g,"\n").split("\n");
+  const out = [];
+  let i = 0;
+  let para = [], listType = null, listBuf = [];
+  let code = null, codeBuf = [];
+  let tblHeader = null, tblRows = [], inTable = false;
+  let quote = [];
+
+  function flushPara(){
+    if(para.length){ out.push("<p>"+inlineMd(para.join(" "))+"</p>"); para=[]; }
+  }
+  function flushList(){
+    if(listType){ out.push("<"+listType+">"+listBuf.join("")+"</"+listType+">"); listType=null; listBuf=[]; }
+  }
+  function flushQuote(){
+    if(quote.length){ out.push("<blockquote>"+quote.map(inlineMd).join("<br>")+"</blockquote>"); quote=[]; }
+  }
+  function flushTable(){
+    if(inTable && tblHeader){
+      let t = '<table><thead><tr>'+tblHeader.map(c=>"<th>"+inlineMd(c)+"</th>").join("")+"</tr></thead><tbody>";
+      for(const r of tblRows) t += "<tr>"+r.map(c=>"<td>"+inlineMd(c)+"</td>").join("")+"</tr>";
+      t += "</tbody></table>";
+      out.push(t);
+    }
+    tblHeader=null; tblRows=[]; inTable=false;
+  }
+  function isSep(cells){ return cells.every(c=>/^:?-{2,}:?$/.test(c.trim())); }
+  function parseRow(line){
+    let s = line.trim();
+    if(s.startsWith("|")) s = s.slice(1);
+    if(s.endsWith("|")) s = s.slice(0,-1);
+    return s.split("|").map(c=>c.trim());
+  }
+
+  while(i < lines.length){
+    let line = lines[i];
+    const raw = line;
+    // 代码块
+    if(/^\s*```/.test(line)){
+      if(code===null){ flushPara(); flushList(); flushQuote(); flushTable(); code=""; codeBuf=[]; }
+      else { out.push("<pre><code>"+escapeHtml(codeBuf.join("\n"))+"</code></pre>"); code=null; codeBuf=[]; }
+      i++; continue;
+    }
+    if(code!==null){ codeBuf.push(raw); i++; continue; }
+    // 空行
+    if(!line.trim()){ flushPara(); flushList(); flushQuote(); flushTable(); i++; continue; }
+    // 表格
+    if(line.trim().startsWith("|") && line.indexOf("|",1)!==-1){
+      const cells = parseRow(line);
+      if(isSep(cells)){ inTable = true; }
+      else if(!inTable){ tblHeader = cells; }
+      else { tblRows.push(cells); }
+      i++; continue;
+    } else { flushTable(); }
+    // 标题
+    let m = line.match(/^(#{1,6})\s+(.*)$/);
+    if(m){ flushPara(); flushList(); flushQuote();
+      const lvl = Math.min(m[1].length, 6);
+      out.push("<h"+lvl+">"+inlineMd(m[2])+"</h"+lvl+">"); i++; continue; }
+    // 引用
+    if(/^\s*>\s?/.test(line)){ flushPara(); flushList(); quote.push(line.replace(/^\s*>\s?/,"")); i++; continue; }
+    else { flushQuote(); }
+    // 分隔线
+    if(/^\s*(---|\*\*\*|___)\s*$/.test(line)){ flushPara(); flushList(); out.push("<hr>"); i++; continue; }
+    // 勾选框
+    m = line.match(/^\s*-\s+\[( |x)\]\s+(.*)$/);
+    if(m){ flushPara(); flushList();
+      out.push('<div class="check '+(m[1]==="x"?"on":"")+'">'+inlineMd(m[2])+'</div>'); i++; continue; }
+    // 列表
+    m = line.match(/^\s*([-*])\s+(.*)$/);
+    if(m){ flushPara();
+      if(listType!=="ul"){ flushList(); listType="ul"; }
+      listBuf.push("<li>"+inlineMd(m[2])+"</li>"); i++; continue; }
+    m = line.match(/^\s*(\d+)\.\s+(.*)$/);
+    if(m){ flushPara();
+      if(listType!=="ol"){ flushList(); listType="ol"; }
+      listBuf.push("<li>"+inlineMd(m[2])+"</li>"); i++; continue; }
+    // 段落
+    flushList();
+    para.push(line.trim());
+    i++;
+  }
+  flushPara(); flushList(); flushQuote(); flushTable();
+  return out.join("\n");
 }
 
-async function load(){
-  STATE = await api('/api/state');
-  document.getElementById('root').textContent = STATE.root;
-  SKILL = Object.fromEntries(STATE.stages.map(s => [s.key, s.skill]));
-  renderBoard();
-  if (SEL) open(SEL);
+/* ---------- 左栏 ---------- */
+function renderLeft(){
+  const list = $("plist");
+  const q = ($("search").value||"").trim().toLowerCase();
+  const items = PROJECTS.filter(p => !q || (p.title||p.slug).toLowerCase().includes(q));
+  if(!PROJECTS.length){
+    list.innerHTML = '<div class="empty-hint">还没有项目。<br>点右上角「新建项目」开始；<br>或先启动 workbench.py 服务。</div>';
+    return;
+  }
+  if(!items.length){
+    list.innerHTML = '<div class="empty-hint">没有匹配「'+escapeHtml(q)+'」的项目。</div>';
+    return;
+  }
+  list.innerHTML = "";
+  for(const p of items){
+    const stages = normStages(p);
+    const ck = currentKey(p);
+    const card = document.createElement("div");
+    card.className = "card" + (p.slug===currentSlug ? " active":"");
+    let curName = "全部完成";
+    if(ck){
+      const st = stages.find(s=>s.key===ck);
+      if(st) curName = st.name;
+    }
+    const segs = stages.map(s=>{
+      const st = statusInfo(s.status);
+      return '<i class="'+(st.cls==="done"?"done":st.cls==="wip"?"wip":"")+'"></i>';
+    }).join("");
+    card.innerHTML =
+      '<div class="ct">'+escapeHtml(p.title||p.slug)+'</div>'+
+      '<div class="cm"><span class="stage">当前：'+escapeHtml(curName)+'</span>'+
+      '<span class="date">'+(escapeHtml(p.created||""))+'</span></div>'+
+      '<div class="pbar">'+segs+'</div>';
+    card.onclick = ()=> selectProject(p.slug);
+    list.appendChild(card);
+  }
 }
 
-function renderBoard(){
-  const cols = STATE.stages.map(s => {
-    const items = STATE.projects.filter(p => p.current.key === s.key);
-    return `<div class="col ${items.length?'active':''}">
-      <h3><span class="k">${s.key}</span>${s.name}<span class="n">${items.length}</span></h3>
-      <div class="skill">${SKILL[s.key]||''}</div>
-      ${items.map(card).join('') || '<div class="ph">空</div>'}
-    </div>`;
-  }).join('');
-  const done = STATE.projects.filter(p => p.current.key === 'done');
-  cols += `<div class="col ${done.length?'active':''}">
-    <h3><span class="k">✓</span>已发布<span class="n">${done.length}</span></h3>
-    <div class="skill">—</div>
-    ${done.map(card).join('') || '<div class="ph">空</div>'}
-  </div>`;
-  document.getElementById('cols').innerHTML = cols;
+/* ---------- 中间预览 ---------- */
+function renderPreview(){
+  const el = $("preview");
+  const proj = currentProject;
+  const final = (proj && proj.final) || {};
+  const slug = currentSlug;
+  if(final.video){
+    const path = final.video.split("/").map(enc).join("/");
+    el.innerHTML = '<video controls src="/media/'+enc(slug)+'/'+path+'"></video>';
+  } else if(final.cover){
+    const path = String(final.cover).split("/").map(enc).join("/");
+    el.innerHTML = '<img src="/media/'+enc(slug)+'/'+path+'" alt="封面">';
+  } else {
+    const title = (proj && (proj.title||proj.slug)) || "未命名项目";
+    el.innerHTML = '<div class="ph"><div class="big">'+escapeHtml(title)+'</div><div>还没出片</div></div>';
+  }
 }
 
-function card(p){
-  const pct = Math.round(p.progress / 7 * 100);
-  return `<div class="card ${SEL===p.slug?'sel':''}" onclick="open('${p.slug}')">
-    <div class="t">${esc(p.title)}</div>
-    <div class="m"><span>${p.created||p.slug.slice(0,8)}</span><span>${p.progress}/7</span></div>
-    <div class="bar"><i style="width:${pct}%"></i></div>
-  </div>`;
+/* ---------- 中间 tab ---------- */
+function tabsConfig(){
+  const stages = normStages(currentProject);
+  const arr = stages.map(s=>({key:s.key, label:s.name, type:"stage"}));
+  arr.push({key:"__publish", label:"发布文案", type:"publish"});
+  return arr;
+}
+function renderTabs(){
+  const tabs = $("tabs");
+  tabs.innerHTML = "";
+  for(const t of tabsConfig()){
+    const b = document.createElement("button");
+    b.className = "tab" + (t.key===selectedStage ? " active":"");
+    b.textContent = (t.type==="stage" ? t.key+" " : "") + t.label;
+    b.onclick = ()=> selectStage(t.key, t.type);
+    tabs.appendChild(b);
+  }
+}
+function updateTabHighlight(){
+  const tabs = $("tabs").children;
+  const cfg = tabsConfig();
+  for(let i=0;i<tabs.length;i++) tabs[i].className = "tab" + (cfg[i] && cfg[i].key===selectedStage ? " active":"");
 }
 
-async function open(slug){
-  SEL = slug;
-  DOC = await api('/api/project/' + encodeURIComponent(slug));
-  renderBoard();
-  const p = STATE.projects.find(x => x.slug === slug) || {title:slug, created:'', progress:0};
-  if (!TAB || !DOC.files[TAB]) TAB = DOC.stages[0].file;
-  let h = `<h2>${esc(p.title)}</h2>
-    <div class="meta">${esc(slug)} · 进度 ${p.progress}/7 · 当前 ${p.current?p.current.name:''}</div>
-    <div>${DOC.stages.map(s => `
-      <div class="stage ${s.done?'on':''}" onclick="toggle('${s.key}',${!s.done})">
-        <div class="box"></div>
-        <div class="nm">${s.key} ${s.name}</div>
-        ${s.hasFile?`<span class="badge f">有稿</span>`:''}
-        <div class="sk">${s.skill}</div>
-      </div>`).join('')}</div>
-    <div class="tabs">${DOC.stages.map(s =>
-      `<span class="tab ${TAB===s.file?'on':''}" onclick="tab('${s.file}')">${s.name}</span>`).join('')}</div>
-    <div id="doc">${DOC.files[TAB]}</div>
-    <div style="margin-top:14px"><button onclick="openPath('projects/${encodeURIComponent(slug)}')">打开项目目录</button></div>`;
-  document.getElementById('side').innerHTML = h;
+/* ---------- 中间内容 ---------- */
+function publishFileKey(){
+  const proj = currentProject;
+  if(!proj) return null;
+  const files = proj.files||{};
+  for(const k of Object.keys(files)) if(/publish/i.test(k)) return k;
+  const raw = proj.raw||{};
+  for(const k of Object.keys(raw)) if(/publish/i.test(k)) return k;
+  return null;
+}
+function renderCenterContent(){
+  const c = $("content");
+  const av = $("assetView");
+  if(view==="asset"){ c.style.display="none"; av.style.display="block"; return; }
+  c.style.display="block"; av.style.display="none";
+  const proj = currentProject;
+  if(selectedStage==="__publish"){
+    const k = publishFileKey();
+    if(k && proj.raw && proj.raw[k]!=null && proj.raw[k]!=="") c.innerHTML = mdToHtml(proj.raw[k]);
+    else if(k && proj.files && proj.files[k]) c.innerHTML = proj.files[k];
+    else c.innerHTML = '<p class="muted">（暂无发布文案。通常先在「06 制作」阶段产出发布文案。）</p>';
+    return;
+  }
+  const stages = normStages(proj);
+  const st = stages.find(s=>s.key===selectedStage) || stages[0];
+  if(!st){ c.innerHTML = '<p class="muted">（没有可显示的阶段）</p>'; return; }
+  const rawMap = proj.raw||{};
+  const htmlMap = proj.files||{};
+  const raw = rawMap[st.file];
+  const html = htmlMap[st.file];
+  if(raw!=null && raw!=="") c.innerHTML = mdToHtml(raw);
+  else if(html!=null && html!=="") c.innerHTML = html;
+  else c.innerHTML = '<p class="muted">（该阶段还没有内容）</p>';
 }
 
-function tab(f){ TAB = f; open(SEL); }
+/* ---------- 右侧属性面板 ---------- */
+function renderRight(){
+  const r = $("right");
+  const proj = currentProject;
+  if(!proj){ r.innerHTML = '<div class="muted">未选择项目。</div>'; return; }
 
-async function toggle(key, done){
-  await api('/api/project/' + encodeURIComponent(SEL) + '/stage', {
-    method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({key, done})
+  if(selectedStage==="__publish"){
+    let html = '<h3>发布文案</h3>';
+    html += '<div class="rblock"><div class="rrow"><span class="k">所属项目</span><span class="v">'+escapeHtml(proj.title||proj.slug)+'</span></div>';
+    html += '<div class="rrow"><span class="k">说明</span><span class="v">制作阶段（06）产出的对外发布文案</span></div></div>';
+    html += hooksBlock(proj) + needsSyncBlock(proj);
+    html += '<div class="btns"><button class="rbtn" id="rOpen">打开所在目录</button></div>';
+    r.innerHTML = html;
+    $("rOpen").onclick = ()=> openDir(proj.slug);
+    return;
+  }
+
+  const stages = normStages(proj);
+  const st = stages.find(s=>s.key===selectedStage) || stages[0];
+  if(!st){ r.innerHTML = '<div class="muted">未选择阶段。</div>'; return; }
+  const info = statusInfo(st.status);
+
+  let html = '<h3>'+escapeHtml(st.key)+' · '+escapeHtml(st.name)+'</h3>';
+  html += '<div class="rblock">';
+  html += '<div class="rrow"><span class="k">文件名</span><span class="v">'+escapeHtml(st.file||"—")+'</span></div>';
+  html += '<div class="rrow"><span class="k">负责技能</span><span class="v">'+escapeHtml(st.skill||"—")+'</span></div>';
+  html += '<div class="rrow"><span class="k">状态</span><span class="v"><span class="pill '+info.cls+'">'+info.label+'</span></span></div>';
+  html += '<div class="rrow"><span class="k">最后更新</span><span class="v">'+(st.updated ? escapeHtml(st.updated) : "未开始")+'</span></div>';
+  html += '</div>';
+
+  // 操作按钮
+  html += '<div class="btns">';
+  if(st.status==="done"){
+    html += '<button class="rbtn" id="rToggle">取消完成</button>';
+  } else {
+    html += '<button class="rbtn accent" id="rToggle">标记完成</button>';
+  }
+  html += '<button class="rbtn" id="rArchive">归档当前版本</button>';
+  html += '<button class="rbtn" id="rOpen">打开所在目录</button>';
+  html += '<button class="rbtn" id="rScan">扫描敏感词</button>';
+  html += '</div>';
+
+  html += hooksBlock(proj) + needsSyncBlock(proj);
+  r.innerHTML = html;
+
+  $("rToggle").onclick = ()=> toggleStage(st.key, st.status);
+  $("rArchive").onclick = ()=> toast("归档功能由后端提供，当前版本已保存在 drafts/ 目录");
+  $("rOpen").onclick = ()=> openDir(proj.slug);
+  $("rScan").onclick = ()=> openAsset("wordlist");
+}
+function hooksBlock(proj){
+  const hooks = (proj && proj.hooks) || [];
+  if(!hooks.length) return "";
+  return '<div class="rblock"><h3 style="margin-bottom:2px">用过的钩子</h3>'+
+    '<div class="chips">'+hooks.map(h=>'<span class="chip">'+escapeHtml(h)+'</span>').join("")+'</div></div>';
+}
+function needsSyncBlock(proj){
+  const ns = (proj && proj.needsSync) || [];
+  if(!ns.length) return "";
+  return '<div class="warnbox">需要同步的下游文件：<br>'+ns.map(f=>escapeHtml(f)).join("<br>")+'</div>';
+}
+
+/* ---------- 底部时间线 ---------- */
+function renderTimeline(){
+  const stages = normStages(currentProject);
+  const ck = currentKey(currentProject);
+  const ruler = $("ruler"), track = $("track");
+  ruler.innerHTML = ""; track.innerHTML = "";
+  let doneCount = 0;
+  for(const s of stages){
+    const info = statusInfo(s.status);
+    if(s.status==="done") doneCount++;
+    const r = document.createElement("div"); r.textContent = s.key+" "+s.name;
+    ruler.appendChild(r);
+
+    const seg = document.createElement("div");
+    let cls = "seg "+info.cls;
+    if(s.key===ck) cls += " current";
+    seg.className = cls;
+    seg.innerHTML = '<span class="num">'+s.key+'</span><span class="nm">'+escapeHtml(s.name)+'</span><span class="dot"></span>';
+    seg.onclick = ()=> selectStage(s.key, "stage");
+    track.appendChild(seg);
+  }
+  const total = stages.length || 1;
+  $("progFill").style.width = Math.round(doneCount/total*100)+"%";
+}
+function updateTimelineHighlight(){
+  const stages = normStages(currentProject);
+  const segs = $("track").children;
+  for(let i=0;i<segs.length;i++){
+    const s = stages[i]; if(!s) continue;
+    segs[i].className = "seg "+statusInfo(s.status).cls;
+    if(s.key===selectedStage) segs[i].classList.add("current");
+  }
+}
+
+/* ---------- 整体渲染 ---------- */
+function centerShow(which){
+  $("preview").style.display   = (which==="project") ? "block" : "none";
+  $("tabs").style.display      = (which==="project") ? "flex"  : "none";
+  $("content").style.display   = (which==="project") ? "block" : "none";
+  $("assetView").style.display = (which==="asset")  ? "block" : "none";
+  $("setupView").style.display = (which==="setup")  ? "block" : "none";
+}
+function renderProject(){
+  if(!currentProject){ return; }
+  centerShow("project");
+  renderPreview();
+  renderTabs();
+  renderCenterContent();
+  renderRight();
+  renderTimeline();
+}
+function showCenterLoading(){
+  centerShow("project");
+  $("content").innerHTML = '<div class="loading">加载中…</div>';
+}
+function setCenterError(msg){
+  centerShow("project");
+  $("preview").innerHTML = '<div class="ph"><div class="err">'+escapeHtml(msg)+'</div></div>';
+  $("content").innerHTML = '<p class="err">'+escapeHtml(msg)+'</p>';
+}
+
+/* ---------- 选择逻辑 ---------- */
+async function selectProject(slug){
+  const p = projectBySlug(slug);
+  if(!p){ toast("项目不存在："+slug, true); return; }
+  currentSlug = slug;
+  view = "project"; assetType = null;
+  clearAssetActive();
+  localStorage.setItem("vflow_last", slug);
+  renderLeft();
+  showCenterLoading();
+  try{
+    currentProject = await fetchJSON("/api/project/"+enc(slug));
+  }catch(e){
+    setCenterError("加载项目失败："+e.message);
+    $("right").innerHTML = '<div class="muted">无法加载项目数据。</div>';
+    return;
+  }
+  const stages = normStages(currentProject);
+  const ck = currentKey(currentProject);
+  selectedStage = (ck && stages.some(s=>s.key===ck)) ? ck : (stages[0] ? stages[0].key : null);
+  renderProject();
+}
+function selectStage(key, type){
+  selectedStage = key;
+  renderCenterContent();
+  renderRight();
+  updateTabHighlight();
+  updateTimelineHighlight();
+}
+
+/* ---------- 标记完成 / 取消 ---------- */
+async function toggleStage(key, curStatus){
+  if(!currentSlug) return;
+  const next = (curStatus==="done") ? "empty" : "done";
+  try{
+    await apiPost("/api/project/"+enc(currentSlug)+"/stage", {key:key, status:next});
+    toast(next==="done" ? ("已标记 "+key+" 完成") : ("已取消 "+key+" 完成"));
+  }catch(e){
+    toast("更新阶段失败："+e.message, true);
+    return;
+  }
+  // 刷新项目数据
+  try{
+    currentProject = await fetchJSON("/api/project/"+enc(currentSlug));
+    // 同步左侧列表里的进度（从 state 拉更准）
+    const st = await fetchJSON("/api/state");
+    PROJECTS = st.projects || PROJECTS; ROOT = st.root || ROOT;
+    renderLeft(); renderProject();
+  }catch(e){ toast("刷新数据失败："+e.message, true); }
+}
+
+/* ---------- 打开目录 ---------- */
+async function openDir(slug){
+  try{
+    await fetch("/api/open?path="+enc(slug||""));
+    toast("已在 Finder 中打开目录");
+  }catch(e){ toast("打开目录失败："+e.message, true); }
+}
+
+/* ---------- 首次引导 ---------- */
+function openPath(p){
+  if(!p) return;
+  fetch("/api/open?path="+enc(p)).then(()=> toast("已在 Finder 中打开："+p))
+    .catch(e=> toast("打开失败："+e.message, true));
+}
+function showSetup(data){
+  view = "setup"; assetType = null; setupData = data; clearAssetActive();
+  centerShow("setup");
+  renderSetup(data);
+}
+async function openSetup(){
+  view = "setup"; assetType = null; clearAssetActive();
+  centerShow("setup");
+  const sv = $("setupView");
+  sv.innerHTML = '<div class="loading">检查配置中…</div>';
+  try{
+    const data = await fetchJSON("/api/setup");
+    renderSetup(data);
+  }catch(e){
+    sv.innerHTML = '<p class="err">加载引导失败：'+escapeHtml(e.message)+'</p>';
+  }
+}
+function dismissSetup(){
+  localStorage.setItem("vflow.setupDismissed", "1");
+  if(currentSlug && PROJECTS.some(p=>p.slug===currentSlug)){
+    selectProject(currentSlug);
+  } else {
+    view = "project"; centerShow("project");
+    $("content").innerHTML = '<p class="muted">左侧没有项目，点右上角「新建项目」。</p>';
+    $("preview").innerHTML = '<div class="ph"><div class="big">'+
+      escapeHtml((currentProject&&(currentProject.title||currentProject.slug))||"Vflow")+'</div><div>还没有项目</div></div>';
+  }
+}
+function renderSetup(data){
+  data = data || {};
+  const sv = $("setupView");
+  const order = ["profile", "voice", "firstProject"];
+  const steps = data.steps || {};
+  const list = order.map(k=>steps[k]).filter(Boolean);
+  const total = list.length || 3;
+  const doneCount = list.filter(s=>s.done).length;
+  const curIdx = list.findIndex(s=>!s.done);
+
+  let html = '<div class="setup-head">';
+  if(data.done){
+    html += '<h2>都齐了，可以开工了</h2>'+
+      '<div class="sub">三步都完成了。以后随时点顶栏「引导」回看。</div>';
+  } else {
+    html += '<h2>开始使用 Vflow</h2>'+
+      '<div class="sub">三步就能跑起来，每步都有理由，不是走流程。</div>';
+  }
+  html += '</div>';
+
+  list.forEach((s, idx)=>{
+    const isCur = (idx===curIdx);
+    const dotCls = s.done ? "done" : (isCur ? "cur" : "");
+    html += '<div class="step'+(isCur ? " current" : "")+'">';
+    html += '<div class="step-dot '+dotCls+'">'+(s.done ? "" : (idx+1))+'</div>';
+    html += '<div class="step-body">';
+    html += '<div class="step-title">'+escapeHtml(s.title||"")+'</div>';
+    html += '<div class="step-why"><b>为什么：</b>'+escapeHtml(s.why||"")+'</div>';
+    html += '<div class="step-how"><b>怎么做：</b>'+escapeHtml(s.how||"")+'</div>';
+    html += '<div class="step-actions">';
+    const a = s.action;
+    if(a){
+      if(a.newProject){
+        html += '<button class="rbtn accent" data-act="new">'+escapeHtml(a.label||"新建项目")+'</button>';
+      } else if(a.open){
+        html += '<button class="rbtn" data-act="open" data-path="'+escapeHtml(a.open)+'">'+escapeHtml(a.label||"打开")+'</button>';
+      }
+    }
+    html += '</div></div></div>';
   });
-  await load();
+
+  html += '<div class="setup-foot">';
+  html += '<span class="prog">已完成 '+doneCount+' / '+total+'</span>';
+  html += '<span class="sp"></span>';
+  html += '<button class="rbtn" id="setupRecheck">重新检查</button>';
+  if(!data.done) html += '<button class="rbtn" id="setupDismiss">暂时跳过</button>';
+  html += '<button class="rbtn accent" id="setupNew">新建项目</button>';
+  html += '</div>';
+
+  sv.innerHTML = html;
+
+  const re = $("setupRecheck"); if(re) re.onclick = ()=> openSetup();
+  const di = $("setupDismiss"); if(di) di.onclick = ()=> dismissSetup();
+  const ne = $("setupNew"); if(ne) ne.onclick = ()=> openModal();
+  sv.querySelectorAll('[data-act="new"]').forEach(b=> b.onclick = ()=> openModal());
+  sv.querySelectorAll('[data-act="open"]').forEach(b=> b.onclick = ()=> openPath(b.getAttribute("data-path")));
 }
 
-async function newProject(){
-  const name = prompt('新项目短名（例：AI-Skill-是什么）');
-  if (!name) return;
-  const r = await api('/api/projects', {method:'POST',
-    headers:{'Content-Type':'application/json'}, body: JSON.stringify({name})});
-  if (r.ok){ SEL = r.slug; TAB = null; await load(); }
-  else alert(r.error || '创建失败');
+/* ---------- 资产视图 ---------- */
+function clearAssetActive(){
+  document.querySelectorAll("#assetbar button").forEach(b=>b.classList.remove("active"));
+}
+function openAsset(type){
+  view = "asset"; assetType = type;
+  clearAssetActive();
+  const btn = document.querySelector('#assetbar button[data-asset="'+type+'"]');
+  if(btn) btn.classList.add("active");
+  centerShow("asset");
+  loadAssets();
+}
+async function loadAssets(){
+  const av = $("assetView");
+  av.style.display="block"; $("content").style.display="none";
+  av.innerHTML = '<div class="loading">加载资产中…</div>';
+  try{
+    if(!assetsData) assetsData = await fetchJSON("/api/assets");
+  }catch(e){
+    av.innerHTML = '<p class="err">加载资产失败：'+escapeHtml(e.message)+'</p>';
+    return;
+  }
+  renderAssetView(assetType);
+}
+function renderAssetView(type){
+  const av = $("assetView");
+  const d = assetsData || {};
+  if(type==="hooks") av.innerHTML = renderHooks(d.hooks);
+  else if(type==="wordlist") av.innerHTML = renderWordlist(d.wordlist);
+  else if(type==="ledger") av.innerHTML = renderLedger(d.ledger);
+  else if(type==="voice") av.innerHTML = renderVoice(d.voice);
+  else av.innerHTML = '<p class="muted">未知资产类型。</p>';
+}
+function renderHooks(h){
+  h = h || {};
+  const list = (h.ranking||[]).slice().sort((a,b)=>(b.score||0)-(a.score||0));
+  let html = '<h2>钩子库</h2><div class="sub">按得分（score）排序，分越高越值得复用。</div>';
+  if(!list.length) html += '<p class="muted">（钩子库为空）</p>';
+  for(const it of list){
+    html += '<div class="acard"><div class="hd"><span class="name">'+escapeHtml(it.id)+' · '+escapeHtml(it.name||"")+'</span>'+
+      '<span class="score">'+escapeHtml(it.score)+'</span></div>'+
+      '<div class="meta"><span>使用 '+escapeHtml(it.used)+' 次</span><span>有效 '+escapeHtml(it.effective)+'</span>'+
+      '<span>无效 '+escapeHtml(it.invalid)+'</span></div>'+
+      (it.template ? '<div class="tpl">'+escapeHtml(it.template)+'</div>' : '')+'</div>';
+  }
+  return html;
+}
+function renderWordlist(w){
+  w = w || {};
+  const counts = w.counts || {};
+  const layers = [["redline","红线词"],["ad-law","广告法"],["platform","平台违禁"],["mine","我的词库"]];
+  let html = '<h2>敏感词表</h2><div class="sub">各层级收录的词条数量。</div>';
+  const max = Math.max(1, ...layers.map(l=>counts[l[0]]||0));
+  for(const [k,label] of layers){
+    const n = counts[k]||0;
+    html += '<div class="acard"><div class="kv"><span class="k">'+label+'</span><span class="v">'+n+' 条</span></div>'+
+      '<div class="bar"><i style="width:'+Math.round(n/max*100)+'%"></i></div></div>';
+  }
+  return html;
+}
+function renderLedger(l){
+  l = l || {};
+  const th = l.threshold!=null ? l.threshold : 3;
+  const cands = l.candidates||[];
+  let html = '<h2>证据台账</h2><div class="sub">候选证据需累计至少 '+th+' 条才会晋级（promoted）。</div>';
+  if(!cands.length) html += '<p class="muted">（暂无候选证据）</p>';
+  for(const c of cands){
+    const ev = c.evidence||0;
+    const enough = ev>=th;
+    html += '<div class="acard"><div class="hd"><span class="name">'+escapeHtml(c.id)+'</span>'+
+      '<span class="pill '+(enough?"done":"empty")+'">'+(enough?"已够 "+th+" 条":"还差 "+(th-ev)+" 条")+'</span></div>'+
+      '<div class="meta"><span>观察：'+escapeHtml(c.observation||"")+'</span></div>'+
+      '<div class="meta"><span>证据 '+ev+' 条</span><span>关联项目：'+(c.projects?escapeHtml(c.projects):"—")+'</span>'+
+      '<span>状态：'+(c.ready?"<span class='ok'>可晋级</span>":"待补充")+'</span></div></div>';
+  }
+  if((l.promoted||[]).length){
+    html += '<h3 style="margin-top:14px">已晋级</h3>'+l.promoted.map(p=>'<div class="chip">'+escapeHtml(p)+'</div>').join(" ");
+  }
+  if((l.retracted||[]).length){
+    html += '<h3 style="margin-top:10px">已撤回</h3>'+l.retracted.map(p=>'<div class="chip">'+escapeHtml(p)+'</div>').join(" ");
+  }
+  return html;
+}
+function renderVoice(v){
+  if(!v || !v.ok) return '<h2>风格卡</h2><div class="sub">声音风格分析。</div><p class="muted">'+
+    escapeHtml((v&&v.reason)||"还没有风格卡")+'</p>';
+  let html = '<h2>风格卡</h2><div class="sub">基于已发布内容的声音风格画像。</div>';
+  const stats = [
+    ["平均句长", v.avg_sent_len],
+    ["中位句长", v.median_sent_len],
+    ["短句占比", (v.short_sent_ratio!=null? (v.short_sent_ratio*100).toFixed(0)+"%":"—")],
+    ["每百字第一人称", (v.first_person_per_100!=null? v.first_person_per_100:"—")],
+    ["问句占比", (v.question_ratio!=null? (v.question_ratio*100).toFixed(0)+"%":"—")]
+  ];
+  html += '<div class="acard">';
+  for(const [k,val] of stats) html += '<div class="kv"><span class="k">'+k+'</span><span class="v">'+escapeHtml(val)+'</span></div>';
+  html += '</div>';
+  if(v.tone_markers && v.tone_markers.length){
+    html += '<h3 style="margin:14px 0 6px">语气标记（词 · 强度）</h3>';
+    html += '<table class="md" style="width:100%"><thead><tr><th>标记</th><th>强度</th></tr></thead><tbody>';
+    for(const [w,sc] of v.tone_markers) html += '<tr><td>'+escapeHtml(w)+'</td><td>'+escapeHtml(sc)+'</td></tr>';
+    html += '</tbody></table>';
+  }
+  if(v.absent && v.absent.length){
+    html += '<h3 style="margin:14px 0 6px">几乎不出现的词</h3><div class="chips">'+
+      v.absent.map(a=>'<span class="chip">'+escapeHtml(a)+'</span>').join("")+'</div>';
+  }
+  if(v.samples && v.samples.length){
+    html += '<h3 style="margin:14px 0 6px">样本句</h3>';
+    for(const s of v.samples.slice(0,5)) html += '<div class="acard" style="padding:8px 10px">'+escapeHtml(s)+'</div>';
+  }
+  return html;
 }
 
-async function openPath(p){
-  await api('/api/open', {method:'POST', headers:{'Content-Type':'application/json'},
-    body: JSON.stringify({path:p})});
+/* ---------- 新建项目浮层 ---------- */
+function openModal(){
+  $("newErr").textContent=""; $("newName").value="";
+  $("overlay").classList.add("show"); $("newName").focus();
+}
+function closeModal(){ $("overlay").classList.remove("show"); }
+async function doCreate(){
+  const name = $("newName").value.trim();
+  if(!name){ $("newErr").textContent="请输入项目名"; return; }
+  try{
+    const r = await apiPost("/api/projects", {name:name});
+    if(!r || !r.ok) throw new Error("后端未返回成功");
+    const slug = r.slug;
+    closeModal();
+    const st = await fetchJSON("/api/state");
+    PROJECTS = st.projects || PROJECTS; ROOT = st.root || ROOT;
+    renderLeft();
+    await selectProject(slug);
+    toast("已创建项目："+slug);
+  }catch(e){
+    $("newErr").textContent = "创建失败："+e.message;
+  }
 }
 
-async function showProfile(){
-  const r = await api('/api/profile');
-  document.getElementById('side').innerHTML =
-    `<h2>账号设定</h2><div class="meta">profile.md · 所有选题和文案都从这长出来</div>
-     <div id="doc">${r.content}</div>`;
+/* ---------- 初始化 ---------- */
+async function boot(){
+  try{
+    const st = await fetchJSON("/api/state");
+    PROJECTS = st.projects || []; ROOT = st.root || "";
+    renderLeft();
+    const last = localStorage.getItem("vflow_last");
+    let first = PROJECTS[0];
+    if(last && PROJECTS.some(p=>p.slug===last)) first = projectBySlug(last);
+    if(first) await selectProject(first.slug);
+    else { $("content").innerHTML = '<p class="muted">左侧没有项目，点右上角「新建项目」。</p>'; }
+    // 首次引导：三步未完成且没手动关过，就替换中间区显示引导卡
+    try{
+      const setup = await fetchJSON("/api/setup");
+      if(!setup.done && !localStorage.getItem("vflow.setupDismissed")) showSetup(setup);
+    }catch(e){ /* 引导检查失败不阻塞主流程 */ }
+  }catch(e){
+    $("plist").innerHTML = '<div class="empty-hint">无法连接工作台服务（127.0.0.1:8765）。<br><br>'+
+      '如果是直接双击打开本文件，请先启动：<br><code>python3 ~/Vflow/scripts/workbench.py</code><br><br>错误：'+escapeHtml(e.message)+'</div>';
+    $("content").innerHTML = '<p class="err">未连接到后端服务：'+escapeHtml(e.message)+'</p>';
+  }
 }
 
-function esc(s){ return (s||'').replace(/[&<>"]/g, c =>
-  ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+/* ---------- 事件绑定 ---------- */
+$("btnGuide").onclick = openSetup;
+$("btnNew").onclick = openModal;
+$("btnRefresh").onclick = refresh;
+$("btnOpen").onclick = ()=> openDir(currentSlug);
+$("newCancel").onclick = closeModal;
+$("newOk").onclick = doCreate;
+$("newName").addEventListener("keydown", e=>{ if(e.key==="Enter") doCreate(); });
+$("overlay").addEventListener("click", e=>{ if(e.target===$("overlay")) closeModal(); });
+$("search").addEventListener("input", renderLeft);
+document.querySelectorAll("#assetbar button").forEach(b=>{
+  b.onclick = ()=> openAsset(b.getAttribute("data-asset"));
+});
+async function refresh(){
+  try{
+    const st = await fetchJSON("/api/state");
+    PROJECTS = st.projects || []; ROOT = st.root || ROOT;
+    renderLeft();
+    if(currentSlug && PROJECTS.some(p=>p.slug===currentSlug)){
+      try{ currentProject = await fetchJSON("/api/project/"+enc(currentSlug)); renderProject(); }
+      catch(e){ toast("刷新项目失败："+e.message, true); }
+    }
+    toast("已刷新");
+  }catch(e){ toast("刷新失败："+e.message, true); }
+}
 
-load();
+boot();
 </script>
 </body>
 </html>

@@ -8,6 +8,15 @@ archive/
 口播稿合集.md
 dashboard/index.html
 
+# 个人声音档案：样本是自己的稿子，风格卡是从中提取的私人特征
+assets/voice-samples/
+assets/voice-card.md
+assets/voice-card.json
+
+# 敏感词表里「自己踩过的」那层是个人积累，提交前自己看一眼
+# 证据台账的实际记录是个人数据，仓库里只留模板
+ledger/evidence.md
+
 # ── 媒体与生成物 ──────────────────────────────────
 *.mp4
 *.webm
