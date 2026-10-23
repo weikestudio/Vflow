@@ -169,6 +169,6 @@ ffmpeg -ss 3 -i output/xxx.mp4 -frames:v 1 /tmp/f.png
 
 ## 环境
 
-- Python：`/Users/v1/.workbuddy/binaries/python/envs/default/bin/python`（其他机器用 `PY=` 或 `VFLOW_PY=` 指定自己的 venv）
+- Python：`python3`（其他机器用 `PY=` 或 `VFLOW_PY=` 指定自己的 venv）
 - 必需：`ffmpeg` / `ffprobe`、Playwright + Chromium、Pillow
 - TTS：`say`（内置，机械感重）/ `edge-tts`（免费，中文好）/ Voicebox（克隆自己声音，质量最好）

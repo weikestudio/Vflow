@@ -11,7 +11,8 @@ cd "$(dirname "$0")/.."
 # 1. 清锁文件（本目录里 git 自己删不掉，用 python 强删/挪走）
 /usr/bin/python3 - <<'PY' 2>/dev/null || true
 import os, glob
-for f in glob.glob('/Users/v1/Vflow/.git/*.lock'):
+root = os.getcwd()          # 本脚本已 cd 到仓库根
+for f in glob.glob(os.path.join(root, '.git', '*.lock')):
     try: os.remove(f)
     except OSError:
         try: os.rename(f, '/tmp/vflow-%s' % os.path.basename(f))

@@ -57,7 +57,7 @@
 | 证据台账 | `ledger/evidence.md` | 复盘时 `ledger.py add`，攒够三条才准 `promote` |
 
 ```bash
-PY=/Users/v1/.workbuddy/binaries/python/envs/default/bin/python
+PY=python3
 cd ~/Vflow
 
 # 声音档案：从自己的稿子里提取文风数字，写完比对有没有跑偏
@@ -118,7 +118,7 @@ bash ~/Vflow/scripts/make_vertical.sh \
 
 # ── 横版视频生成（路线 A，默认 1920x1080）──
 SS=~/Vflow/skills/vflow-produce/scripts
-PY=/Users/v1/.workbuddy/binaries/python/envs/default/bin/python
+PY=python3
 
 # 首次试跑：零安装，用 macOS say
 bash $SS/build_video.sh ~/Vflow/projects/<slug>/deck --tts say

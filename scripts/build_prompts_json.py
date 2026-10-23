@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 """把 prompts/ 目录里的 Markdown 提示词打包成 prompts.json，供提示词软件导入。
 用法：
-  /Users/v1/.workbuddy/binaries/python/envs/default/bin/python \
+  python3 \
       ~/shortvideo-studio/scripts/build_prompts_json.py
 产出：~/shortvideo-studio/prompts/prompts.json
 """

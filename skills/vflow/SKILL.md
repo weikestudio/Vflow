@@ -187,7 +187,7 @@ bash $VFLOW/scripts/new_project.sh "选题短名"
 
 ## 环境
 
-- Python 用隔离环境：`/Users/v1/.workbuddy/binaries/python/envs/default/bin/python`（其他机器换成自己的 venv）
+- Python 用隔离环境：`python3`（其他机器换成自己的 venv）
 - `ffmpeg` / `ffprobe`：合成、抽帧、校验，必须有
 - 成片生成详见 `vflow-produce`
 

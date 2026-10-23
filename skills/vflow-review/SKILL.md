@@ -110,7 +110,7 @@ python3 scripts/hooks.py fill H7 20261022-这条 --ret3 48 --finish 31 --verdict
 
 ```bash
 # 刷新仪表盘（读全部历史项目 + 当前进度）
-/Users/v1/.workbuddy/binaries/python/envs/default/bin/python \
+python3 \
   $VFLOW/scripts/build_dashboard.py
 # 产出 $VFLOW/dashboard/index.html，双击可开
 ```

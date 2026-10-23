@@ -14,7 +14,7 @@ PROJECT="$(cd "$PROJECT" && pwd)"
 
 cd "$PROJECT"
 
-PY="${VFLOW_PY:-/Users/v1/.workbuddy/binaries/python/envs/default/bin/python}"
+PY="${VFLOW_PY:-python3}"
 SS="${VFLOW_HOME:-$HOME/Vflow}/skills/vflow-produce/scripts"
 BGM="none"
 

@@ -2,7 +2,7 @@
 """扫描 Vflow 工作台，生成可视化仪表盘 dashboard/index.html。
 
 用法：
-    /Users/v1/.workbuddy/binaries/python/envs/default/bin/python \
+    python3 \
         ~/Vflow/scripts/build_dashboard.py
 
 产出：

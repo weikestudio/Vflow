@@ -65,7 +65,7 @@ bash ~/Vflow/scripts/new_project.sh "选题短名"
 | **证据台账** | 观察先记候选，**三条可比证据才准升级为默认**，不够会被直接拒绝。防的是"一条爆了就改方法、下一条照抄就扑了" |
 
 ```bash
-PY=/Users/v1/.workbuddy/binaries/python/envs/default/bin/python
+PY=python3
 cd ~/Vflow
 
 $PY scripts/voice_profile.py build && $PY scripts/voice_profile.py compare projects/<slug>/03-script.md
@@ -142,12 +142,12 @@ bash ~/Vflow/scripts/make_vertical.sh ~/Vflow/projects/<slug>/deck
 
 **通用**
 ```bash
-PY=/Users/v1/.workbuddy/binaries/python/envs/default/bin/python
+PY=python3
 SS=~/Vflow/skills/vflow-produce/scripts
 bash $SS/build_video.sh ~/Vflow/projects/<slug>/deck --tts edge --voice zh-CN-YunxiNeural
 ```
 
-竖版模板在 `assets/deck-template-vertical.html`，示例成片见 `projects/20261016-示例-竖版/output/deck.mp4`。
+竖版模板在 `assets/deck-template-vertical.html`。示例成片不随仓库分发（`projects/` 是你的私人目录），你自己跑完一条会生成在 `projects/<slug>/output/` 里。
 
 必需环境：`ffmpeg` / `ffprobe`、Playwright + Chromium、Pillow。TTS 可选 `say`（内置）/ `edge-tts`（免费，中文好）/ Voicebox（克隆自己声音）。
 
