@@ -180,6 +180,7 @@ def build_state(slug):
 
 def write_state(slug, state):
     state["version"] = STATE_VERSION
+    os.makedirs(os.path.dirname(state_path(slug)), exist_ok=True)
     with open(state_path(slug), "w", encoding="utf-8") as fh:
         json.dump(state, fh, ensure_ascii=False, indent=2)
 
@@ -215,9 +216,23 @@ def cmd_show(args):
 
 
 def cmd_init(args):
+    pdir = os.path.join(projects_dir(), args.slug)
+    os.makedirs(pdir, exist_ok=True)
+    # 把阶段模板铺进新项目，省得手动一个个复制
+    tmpl_dir = os.path.join(ROOT, "pipeline")
+    copied = []
+    if os.path.isdir(tmpl_dir):
+        for fn in sorted(os.listdir(tmpl_dir)):
+            if not fn.endswith(".md"):
+                continue
+            dst = os.path.join(pdir, fn)
+            if not os.path.exists(dst):
+                shutil.copy2(os.path.join(tmpl_dir, fn), dst)
+                copied.append(fn)
     st = build_state(args.slug)
     write_state(args.slug, st)
-    return st
+    sync_readme(args.slug, st)
+    return {"slug": args.slug, "templates": copied, "state": st}
 
 
 def cmd_migrate(_args):
