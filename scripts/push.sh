@@ -34,12 +34,20 @@ echo "推送到 $REMOTE ..."
 if git push -u origin main; then
   echo
   echo "推送成功。查看：https://github.com/weikestudio/Vflow"
+elif git fetch -q origin main 2>/dev/null && git push --force-with-lease origin main; then
+  echo
+  echo "本地历史与远端分叉（远端是网页手动上传的单次提交），已用本地完整历史覆盖。"
+  echo "查看：https://github.com/weikestudio/Vflow"
 else
   echo
-  echo "推送失败，通常是没登录。二选一："
-  echo "  gh auth login --web        # 浏览器授权后重跑本脚本"
-  echo "  或配 SSH：ssh-keygen -t ed25519 -C weikestudio && pbcopy < ~/.ssh/id_ed25519.pub"
-  echo "  粘贴到 https://github.com/settings/keys 后："
-  echo "  git remote set-url origin git@github.com:weikestudio/Vflow.git && git push -u origin main"
+  echo "推送失败。先确认是哪一类问题："
+  echo "  连接层（CONNECT tunnel failed / Operation timed out）→ 网络或代理，换网络再试"
+  echo "  认证层（Authentication failed / could not read Username）→ 没登录，二选一："
+  echo "    gh auth login --web        # 浏览器授权后重跑本脚本"
+  echo "    或配 SSH：ssh-keygen -t ed25519 -C weikestudio && pbcopy < ~/.ssh/id_ed25519.pub"
+  echo "    粘贴到 https://github.com/settings/keys 后："
+  echo "    git remote set-url origin git@github.com:weikestudio/Vflow.git && git push -u origin main"
+  echo "  非快进（rejected / non-fast-forward）→ 本地与远端历史分叉，确认本地是最新后："
+  echo "    git push --force-with-lease origin main"
   exit 1
 fi
