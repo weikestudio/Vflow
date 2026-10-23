@@ -92,6 +92,16 @@ python3 $VFLOW/scripts/voice_profile.py compare projects/<slug>/03-script.md
 - 标注每段预计秒数、换气点、重录提示
 - **真人录音是主时钟**，字幕按实际音频对齐，别按稿子估时间
 
+## 边界
+
+**做**：按框架写念出来不卡的口语稿，产出 `03-script.md`。
+
+**不做**：不改结构（要加页、调顺序，回 `02-outline.md`）；不查敏感词和平台风险（那是检查）；不定标题封面开头（那是包装）。图文正文和公众号文章不是口播稿，别用这里写。
+
+**单独被调用时**：`02-outline.md` 不存在就说明并回 `vflow-outline`；声音档案不存在就先放 2–3 篇**你自己写过**的成稿进 `assets/voice-samples/`，跑 `voice_profile.py build`。
+
+**越界信号**：念着卡是因为结构本身有问题，不是句子的问题——改稿解决不了，回结构。
+
 ## 收尾
 
 自检五项全过，再进 `vflow-package`。
