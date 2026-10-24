@@ -20,7 +20,7 @@ for f in glob.glob(os.path.join(root, '.git', '*.lock')):
 PY
 
 # 2. remote（大小写与远端仓库名对齐）
-REMOTE="https://github.com/weikestudio/Vflow.git"
+REMOTE="https://github.com/weikestudio/vflow.git"
 if git remote | grep -qx origin; then
   git remote set-url origin "$REMOTE"
 else
@@ -30,15 +30,15 @@ fi
 # 3. 分支
 git branch -M main
 
-# 4. 推送
+# 4. 推送（分支 + 标签）
 echo "推送到 $REMOTE ..."
-if git push -u origin main; then
+if git push -u origin main --follow-tags; then
   echo
-  echo "推送成功。查看：https://github.com/weikestudio/Vflow"
-elif git fetch -q origin main 2>/dev/null && git push --force-with-lease origin main; then
+  echo "推送成功。查看：https://github.com/weikestudio/vflow"
+elif git fetch -q origin main 2>/dev/null && git push --force-with-lease origin main --follow-tags; then
   echo
   echo "本地历史与远端分叉（远端是网页手动上传的单次提交），已用本地完整历史覆盖。"
-  echo "查看：https://github.com/weikestudio/Vflow"
+  echo "查看：https://github.com/weikestudio/vflow"
 else
   echo
   echo "推送失败。先确认是哪一类问题："
