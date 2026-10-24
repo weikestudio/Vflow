@@ -36,8 +36,18 @@ def read_text(p):
         return ""
 
 
+HEADER_KEYS = {
+    "项目": "project", "平台": "platform", "轨道": "track",
+    "3秒留存": "ret3", "5秒留存": "ret3", "完播": "finish",
+    "收藏率": "collect", "结论": "verdict",
+}
+
+
 def parse_hooks():
-    """解析 hooks.md，返回 [(id, name, rows)]。"""
+    """解析 hooks.md，返回 [{id, name, template, rows, header}]。
+
+    按表头映射列名，所以 5 列旧表和 6 列新表都能读。
+    """
     text = read_text(HOOKS_MD)
     out = []
     cur = None
@@ -45,27 +55,48 @@ def parse_hooks():
         m = re.match(r"^##\s+(H\d+)\s+·\s+(.+)$", line)
         if m:
             cur = {"id": m.group(1), "name": m.group(2).strip(),
-                   "template": "", "rows": []}
+                   "template": "", "rows": [], "header": []}
             out.append(cur)
+            continue
+        if re.match(r"^##\s+", line) and not m:
+            cur = None          # 其它二级标题（写法要求 / 淘汰记录）不属于任何钩子
             continue
         if cur is None:
             continue
         if line.startswith("**模板**"):
             cur["template"] = line.split("：", 1)[-1].strip()
-        elif line.startswith("|") and "---" not in line and "项目" not in line:
+        elif line.startswith("|") and "---" not in line:
             cells = [c.strip() for c in line.strip("|").split("|")]
-            if len(cells) >= 5:
-                cur["rows"].append({
-                    "project": cells[0], "platform": cells[1],
-                    "ret3": cells[2], "finish": cells[3],
-                    "verdict": cells[4],
-                })
+            if not cur["header"]:
+                # 第一行是表头
+                cur["header"] = [HEADER_KEYS.get(c, c) for c in cells]
+                continue
+            keys = cur["header"]
+            row = {}
+            for i, c in enumerate(cells):
+                if i < len(keys):
+                    row[keys[i]] = c
+            if row:
+                row.setdefault("track", "发现轨")
+                row.setdefault("collect", "—")
+                cur["rows"].append(row)
     return out
 
 
-def write_rows(hook_id, rows):
+LABEL = {"project": "项目", "platform": "平台", "track": "轨道",
+         "ret3": "5秒留存", "finish": "完播", "collect": "收藏率",
+         "verdict": "结论"}
+DEFAULT_KEYS = ["project", "platform", "track", "ret3", "finish",
+                "collect", "verdict"]
+
+
+def write_rows(hook_id, rows, header=None):
     """把某个钩子的记录行写回 hooks.md：保留表头，替换数据行。"""
     lines = read_text(HOOKS_MD).split("\n")
+    keys = [HEADER_KEYS.get(h, h) for h in (header or [])] or DEFAULT_KEYS
+    keys = [k for k in keys if k in LABEL]
+    if not keys:
+        keys = DEFAULT_KEYS
     out, i, n = [], 0, len(lines)
     while i < n:
         line = lines[i]
@@ -73,27 +104,16 @@ def write_rows(hook_id, rows):
         if m and m.group(1) == hook_id:
             out.append(line)
             i += 1
-            header = None
             while i < n and not re.match(r"^##\s+", lines[i]):
-                cur_line = lines[i]
-                if cur_line.startswith("|"):
-                    if "---" not in cur_line and header is None \
-                            and "项目" in cur_line:
-                        header = cur_line
-                    i += 1          # 表头和数据行都跳过，最后统一写
-                    continue
-                out.append(cur_line)
-                i += 1
+                i += 1                 # 表头和数据行跳过，最后统一写
             while out and out[-1].strip() == "":
                 out.pop()
             out.append("")
-            if header:
-                out.append(header)
-                out.append("|---|---|---|---|---|")
+            out.append("| " + " | ".join(LABEL[k] for k in keys) + " |")
+            out.append("|" + "---|" * len(keys))
             for r in rows:
-                out.append("| %s | %s | %s | %s | %s |" % (
-                    r["project"], r["platform"], r["ret3"],
-                    r["finish"], r["verdict"]))
+                out.append("| " + " | ".join(
+                    r.get(k, "—") for k in keys) + " |")
             out.append("")
             continue
         out.append(line)
@@ -128,7 +148,7 @@ def cmd_list(_a):
     return {"hooks": [{
         "id": h["id"], "name": h["name"],
         "used": len(h["rows"]),
-        "effective": sum(1 for r in h["rows"] if r["verdict"] == "有效"),
+        "effective": sum(1 for r in h["rows"] if r.get("verdict") == "有效"),
         "template": h["template"],
     } for h in hooks]}
 
@@ -137,8 +157,8 @@ def cmd_best(_a):
     hooks = parse_hooks()
     stat = []
     for h in hooks:
-        eff = sum(1 for r in h["rows"] if r["verdict"] == "有效")
-        bad = sum(1 for r in h["rows"] if r["verdict"] == "无效")
+        eff = sum(1 for r in h["rows"] if r.get("verdict") == "有效")
+        bad = sum(1 for r in h["rows"] if r.get("verdict") == "无效")
         stat.append({
             "id": h["id"], "name": h["name"], "used": len(h["rows"]),
             "effective": eff, "invalid": bad,
@@ -163,9 +183,10 @@ def cmd_use(a):
             return {"error": "这个项目已经记过 %s 了" % a.hook}
     target["rows"].append({
         "project": a.slug, "platform": a.platform,
-        "ret3": "—", "finish": "—", "verdict": "待回填",
+        "track": getattr(a, "track", None) or "发现轨",
+        "ret3": "—", "finish": "—", "collect": "—", "verdict": "待回填",
     })
-    write_rows(target["id"], target["rows"])
+    write_rows(target["id"], target["rows"], target.get("header"))
     touch_project(a.slug, target["id"])
     return {"ok": True, "hook": target["id"], "name": target["name"],
             "project": a.slug,
@@ -185,13 +206,17 @@ def cmd_fill(a):
         return {"error": "没有这个钩子：%s" % a.hook}
     for r in target["rows"]:
         if r["project"] == a.slug:
+            if getattr(a, "ret5", None) is not None:
+                r["ret3"] = a.ret5
             if a.ret3 is not None:
                 r["ret3"] = a.ret3
             if a.finish is not None:
                 r["finish"] = a.finish
+            if getattr(a, "collect", None) is not None:
+                r["collect"] = a.collect
             if a.verdict:
                 r["verdict"] = a.verdict
-            write_rows(target["id"], target["rows"])
+            write_rows(target["id"], target["rows"], target.get("header"))
             return {"ok": True, "row": r}
     return {"error": "这个项目没记过 %s，先跑 use" % a.hook}
 
@@ -204,10 +229,12 @@ def main():
     p = sub.add_parser("use")
     p.add_argument("hook"); p.add_argument("slug")
     p.add_argument("--platform", default="douyin")
+    p.add_argument("--track", choices=["发现轨", "深度轨"], default="发现轨")
     p.set_defaults(fn=cmd_use)
     p = sub.add_parser("fill")
     p.add_argument("hook"); p.add_argument("slug")
-    p.add_argument("--ret3"); p.add_argument("--finish")
+    p.add_argument("--ret3"); p.add_argument("--ret5")
+    p.add_argument("--finish"); p.add_argument("--collect")
     p.add_argument("--verdict", choices=["有效", "一般", "无效", "待回填"])
     p.set_defaults(fn=cmd_fill)
 

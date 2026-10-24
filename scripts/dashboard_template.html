@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>小V智谈 · 短视频工作台</title>
+<title>Vflow · 内容工作台</title>
 <style>
   :root{
     --bg:#0f1115; --panel:#171a21; --panel2:#1d212a; --line:#272c37;
@@ -100,7 +100,7 @@
 
 <header>
   <div>
-    <h1><span>小V智谈</span> · 短视频工作台</h1>
+    <h1><span id="acctName">Vflow</span> · 内容工作台</h1>
     <div class="sub" id="sub"></div>
   </div>
   <div class="refresh" id="refresh"></div>
@@ -139,6 +139,7 @@ var statDefs = [
   ["已成片", D.stats.shipped, ""],
   ["进行中", D.stats.in_progress, ""],
   ["已复盘", D.stats.reviewed, ""],
+  ["待复盘", D.stats.pending_review, ""],
   ["验证项目", D.stats.test, ""]
 ];
 document.getElementById("stats").innerHTML = statDefs.map(function (x) {
@@ -205,9 +206,10 @@ var rows = D.projects.map(function (p) {
     return '<i class="' + (st.state === "done" ? "done" : (st.state === "template" ? "tpl" : "")) + '"></i>';
   }).join("");
   var st2 = p.done_n === 0 ? "未启动" : p.next;
+  var reviewTag = p.pending_review ? ' <span class="tag">待复盘</span>' : "";
   var kindTag = p.kind === "real" ? "" :
     ' <span class="tag">' + (p.kind === "test" ? "链路验证" : "空壳") + '</span>';
-  return '<tr><td class="name">' + p.title + kindTag + '</td><td class="dim">' + p.date +
+  return '<tr><td class="name">' + p.title + reviewTag + kindTag + '</td><td class="dim">' + p.date +
     '</td><td><div class="mini">' + mini + '</div></td><td class="dim">' + p.done_n + '/' + p.total_n +
     '</td><td class="muted">' + st2 + '</td></tr>';
 }).join("");
@@ -216,6 +218,9 @@ document.getElementById("all").innerHTML =
   rows + '</tbody>';
 
 var sd = D.studio;
+if (sd && sd["账号名"] && sd["账号名"].indexOf("未填") < 0) {
+  document.getElementById("acctName").textContent = sd["账号名"];
+}
 document.getElementById("studio").innerHTML = Object.keys(sd).map(function (k) {
   return '<div class="sc"><span>' + k + '</span><b>' + sd[k] + '</b></div>';
 }).join("");

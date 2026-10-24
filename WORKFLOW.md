@@ -13,23 +13,29 @@
   │   对标调研 / 观众任务 / 价值预估
   │
   ├─ 阶段2 结构 ────→ 02-outline.md      ⏸ 停：确认框架
-  │   8页框架 / 每页一个点
+  │   选结构模板 T1–T6 / 四个大刺激点 / 可保存物定位 / 双轨差异
   │
   ├─ 阶段3 剧本 ────→ 03-script.md
-  │   口播逐字稿 + 流畅度检查
+  │   钩子三变体 / 双轨两版 / 四个大刺激点 / 留存五项
+  │   └─ script_check.py  机器自检（慢热开头/无可保存物/CTA/节奏/AI味）
   │
   ├─ 阶段4 包装 ────→ 04-package.md
-  │   标题 / 封面文字 / 开头3秒
+  │   标题 / 封面 / 开头3秒 / 小红书关键词矩阵 / AI 声明
   │
   ├─ 阶段5 检查 ────→ 05-check.md
-  │   发布风险 + AI味                    ⛔ 没过不许制作
+  │   脚本自检 + 风险 + 实质 + AI味 + 声明台账 + 封面/成片/发布包质检   ⛔ 没过不许制作
   │
-  ├─ 阶段6 制作 ────→ output/*.mp4       ⏸ 停：确认成片
+  ├─ 阶段6 制作 ────→ output/final-*.mp4  ⏸ 停：确认成片
   │   路线A AI生成 / 路线B 手绘 / 路线C 真人
-  │   └─ publish-copy.md  分平台文案
+  │   ├─ qc.py video  成片技术质检（黑帧/静音/响度/音画同步）
+  │   ├─ publish-copy.md  分平台文案
+  │   ├─ package.py build  一键发布包（成片/封面/双平台文案/清单/manifest）
+  │   └─ publish.py queue → run  发布（人工 / 半自动 / auto 需显式开启）
   │
-  └─ 阶段7 复盘 ────→ 06-review.md
-      48小时后回填数据，攒够三条证据才写回 profile.md
+  └─ 阶段7 复盘 ────→ 06-review.md        48 小时后必做
+      review.py fill 回填双轨指标 → .vflow.json、钩子回填、观察进台账
+      review.py stats --track 看同轨均值
+      攒够三条可比证据才写回 profile.md
 ```
 
 ## 能力对照表
@@ -40,12 +46,17 @@
 |---|---|---|
 | 全流程调度 | `vflow` | 判断在哪一阶段、路由、落盘 |
 | 选题与对标 | `vflow-topic` | 三问筛查 + 对标三层筛 + 二创边界自检 |
-| 结构框架 | `vflow-outline` | 页面级结构，每页一个角色 |
-| 口播逐字稿 | `vflow-script` | 口语稿 + 声音档案对齐 + 流畅度五项自检 |
-| 标题封面开头 | `vflow-package` | 三件套 + 钩子库 + 兑现检查 |
-| 发布前检查 | `vflow-check` | 词表扫描 + 机器风险 + 内容实质 + AI 味 |
+| 结构框架 | `vflow-outline` | 选 T1–T6 模板、四个大刺激点、可保存物、双轨差异 |
+| 口播逐字稿 | `vflow-script` | 六模板 + 钩子三变体 + 双轨 + 留存五项 + 机器自检 |
+| 标题封面开头 | `vflow-package` | 三件套 + 钩子库 + 小红书关键词矩阵 + 兑现检查 |
+| 发布前检查 | `vflow-check` | 脚本自检 + 词表 + 实质 + AI 味 + 声明台账 + 质检 |
 | 生成成片 | `vflow-produce` | HTML deck + TTS + 录屏 + 字幕 |
-| 数据复盘 | `vflow-review` | 分桶归因 + 证据台账 + 钩子数据回填 |
+| 数据复盘 | `vflow-review` | 双轨归因 + 证据台账 + 钩子数据回填 |
+| 选题池 | `backlog.md` | 候选 / 在做 / 已发 / 已毙，毙掉写原因 |
+| 机器质检 | `qc.py` | 封面 + 成片 + 发布包 |
+| 发布包 | `package.py` | 成片/封面/双平台文案/清单/manifest |
+| 发布队列 | `publish.py` | manual 默认 / assisted / auto 需显式开启 |
+| 内容日历 | `content_calendar.py` | 系列与排期 |
 
 ## 资产层（越用越值钱的部分）
 
@@ -55,6 +66,10 @@
 | 钩子库 | `assets/hooks.md` | 用了就 `hooks.py use`，复盘时 `hooks.py fill` 回填数据 |
 | 敏感词表 | `assets/wordlist.md` | 踩到坑往 `mine` 层加，写清后果 |
 | 证据台账 | `ledger/evidence.md` | 复盘时 `ledger.py add`，攒够三条才准 `promote` |
+| 选题池 | `backlog.md` | 有想法就 `backlog.py add`，毙掉 `kill --why` |
+| 结构库 | `assets/structures.md` | 写稿前选模板 |
+| 声明台账 | `claims.md` | 发前登记数字来源和口径 |
+| 内容日历 | `calendar.md` | 系列与排期 |
 
 ```bash
 PY=python3
@@ -82,9 +97,57 @@ $PY scripts/ledger.py add x --slug <slug> --again E1
 $PY scripts/ledger.py promote E1        # 不够三条会被拒绝
 $PY scripts/ledger.py list
 
+# 口播稿自检
+$PY scripts/script_check.py <slug> [--track 深度轨]
+
+# 复盘闭环
+$PY scripts/publish.py done <slug> --platform douyin   # 发完登记（自动进复盘队列）
+$PY scripts/review.py pending                          # 谁该复盘了（发布满 48h）
+$PY scripts/review.py fill <slug> --platform douyin --play 12000 --ret5 45 --finish 28 --collect-rate 2.7 --track 发现轨
+$PY scripts/review.py stats --track 深度轨              # 同轨均值
+$PY scripts/review.py report                           # dashboard/review.md
+
+# 封面 / 成片 / 发布包质检
+$PY scripts/qc.py cover <slug>                     # 封面四项 + 手机缩略图
+$PY scripts/qc.py video <slug>                     # 成片九项
+$PY scripts/qc.py package <slug>                   # 标题/标签/关键词矩阵/AI 声明/导流
+$PY scripts/qc.py all <slug>
+$PY scripts/qc.py template                         # 封面底图
+
+# 声明台账
+$PY scripts/claims.py scan <slug>
+$PY scripts/claims.py add "49.5%" --source "IDC 2026-06" --caliber "市场份额" --slug <slug>
+$PY scripts/claims.py stale --days 90
+
+# 发布包 / 发布队列
+$PY scripts/package.py build <slug> --zip
+$PY scripts/publish.py queue <slug> --platform douyin [--mode manual|assisted|auto]
+$PY scripts/publish.py run <slug> --platform douyin
+$PY scripts/publish.py done <slug> --platform douyin
+
+# 内容日历
+$PY scripts/content_calendar.py series add "主题" --goal 4 --start 2026-11-02
+$PY scripts/content_calendar.py plan "选题" --date 2026-11-02 --platform douyin --series S1
+$PY scripts/content_calendar.py week / due / check
+
+# 版本
+$PY scripts/version.py check
+
+# 选题池
+$PY scripts/backlog.py add "一句话想法" --type B
+$PY scripts/backlog.py list
+$PY scripts/backlog.py start "<关键词>"
+$PY scripts/backlog.py kill "<关键词>" --why "答不了第二问"
+$PY scripts/backlog.py review                      # 30 天没动的
+
+# 环境自检 / 回归
+$PY scripts/doctor.py [--fix] [--json]
+bash tests/run_regression.sh
+
 # 项目状态机（唯一真源 .vflow.json）
 $PY scripts/vflow_state.py show <slug>
-$PY scripts/vflow_state.py set <slug> 03 done
+$PY scripts/vflow_state.py set <slug> 03 done      # 定稿后改稿会自动回 wip
+$PY scripts/vflow_state.py migrate [--write]       # 补/对齐状态文件
 $PY scripts/vflow_state.py archive <slug> 03-script.md
 $PY scripts/vflow_state.py sync <slug> --from 03-script.md
 $PY scripts/vflow_state.py final <slug> --video output/final.mp4
@@ -154,8 +217,11 @@ python3 ~/Vflow/skills/video-download/scripts/download.py "<链接>"
 | macOS say | ✅ 内置 | TTS 兜底，机械感重 |
 | edge-tts | 安装中 | 免费中文神经音色，推荐 |
 | Playwright + Chromium | 安装中 | 幻灯片录屏，必需 |
+| 中文字体 | ✅ | 封面质检字宽测算、字幕渲染 |
 | yt-dlp | ❌ 未装 | `brew install yt-dlp` |
 | aione CLI | ❌ 未装 | 逆向接口，装前看风险说明 |
+
+实际状态以 `python3 scripts/doctor.py` 为准（它会逐项检测，不靠手写表格）。
 
 ## 竖版交付参数（抖音 / 小红书）
 

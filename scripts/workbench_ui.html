@@ -258,12 +258,22 @@
   #toast.show{opacity:1; transform:translateX(-50%) translateY(0)}
   #toast.err{border-color:var(--err); color:var(--err)}
   .loading{color:var(--muted); padding:30px; text-align:center}
+  .rfgrid{display:grid;grid-template-columns:1fr 1fr;gap:6px 10px;margin:6px 0 8px}
+  .rf{display:flex;flex-direction:column;gap:2px;font-size:11px;color:var(--muted)}
+  .rf input{background:var(--bg);border:1px solid var(--line);color:var(--text);
+    border-radius:5px;padding:5px 7px;font-size:12px;outline:none}
+  .rf input:focus{border-color:var(--accent)}
+  .modal textarea{width:100%;background:var(--bg);border:1px solid var(--line);
+    color:var(--text);border-radius:6px;padding:6px 8px;font-size:12px;
+    margin:5px 0;outline:none;resize:vertical;font-family:inherit}
 </style>
 </head>
 <body>
   <header>
     <div class="brand"><b>Vflow</b><span>内容流水线</span></div>
     <div class="spacer"></div>
+    <button class="tbtn" id="btnCalendar">本周排期</button>
+    <button class="tbtn" id="btnReview">待复盘 <span id="reviewCount" style="color:var(--warn)"></span></button>
     <button class="tbtn" id="btnGuide">引导</button>
     <button class="tbtn primary" id="btnNew">新建项目</button>
     <button class="tbtn" id="btnRefresh">刷新</button>
@@ -632,7 +642,31 @@ function renderRight(){
   html += '<button class="rbtn" id="rArchive">归档当前版本</button>';
   html += '<button class="rbtn" id="rOpen">打开所在目录</button>';
   html += '<button class="rbtn" id="rScan">扫描敏感词</button>';
+  html += '<button class="rbtn accent" id="rQc">跑质检（封面 + 成片）</button>';
   html += '</div>';
+  html += '<div class="btns">';
+  if(!(proj.published && proj.published.douyin)){
+    html += '<button class="rbtn" id="rPublishDy">登记已发抖音</button>';
+  }
+  if(!(proj.published && proj.published.xhs)){
+    html += '<button class="rbtn" id="rPublishXhs">登记已发小红书</button>';
+  }
+  html += '</div>';
+  if(proj.published && Object.keys(proj.published).length){
+    html += '<div class="rblock"><h3 style="margin-bottom:2px">发布与复盘</h3>';
+    for(const [pk,pv] of Object.entries(proj.published)){
+      const done = !!(proj.review && proj.review.has_data);
+      html += '<div class="rrow"><span class="k">'+(pk==="douyin"?"抖音":"小红书")+'</span><span class="v">'+
+        escapeHtml(pv.published_at||"")+(done?" · 已复盘":" · 待复盘")+'</span></div>';
+    }
+    if(proj.review && !proj.review.has_data){
+      const one = Object.keys(proj.published)[0];
+      html += '<div class="btns"><button class="rbtn accent" id="rReview">回填数据</button></div>';
+    } else {
+      html += '<div class="btns"><button class="rbtn" id="rReview">改一下数据</button></div>';
+    }
+    html += '</div>';
+  }
 
   html += hooksBlock(proj) + needsSyncBlock(proj);
   r.innerHTML = html;
@@ -641,6 +675,163 @@ function renderRight(){
   $("rArchive").onclick = ()=> toast("归档功能由后端提供，当前版本已保存在 drafts/ 目录");
   $("rOpen").onclick = ()=> openDir(proj.slug);
   $("rScan").onclick = ()=> openAsset("wordlist");
+  const qcBtn = $("rQc");
+  if(qcBtn) qcBtn.onclick = async ()=>{
+    qcBtn.disabled = true; qcBtn.textContent = "质检中（可能十几秒）…";
+    try{
+      const r = await apiPost("/api/qc", {slug: proj.slug});
+      toast(r.ok ? "质检完成：见 05-check.md 末尾报告" : "质检有未通过项，见报告", !r.ok);
+      await refreshProject();
+      selectStage("05", "stage");
+    }catch(e){ toast("质检失败："+e.message, true); }
+    qcBtn.disabled = false; qcBtn.textContent = "跑质检（封面 + 成片）";
+  };
+  const pd = $("rPublishDy"), px = $("rPublishXhs");
+  if(pd) pd.onclick = ()=> publishProj("douyin");
+  if(px) px.onclick = ()=> publishProj("xhs");
+  const rv = $("rReview");
+  if(rv) rv.onclick = ()=> openReviewForm(proj);
+}
+function openReviewForm(proj){
+  const plats = Object.keys(proj.published||{});
+  const plat = plats[0] || "douyin";
+  const cur = (proj.metrics && proj.metrics[plat]) || {};
+  const track = (proj.published && proj.published[plat] && proj.published[plat].track) || (plat==="xhs"?"深度轨":"发现轨");
+  const f = (k, label, rate)=> '<label class="rf"><span>'+label+'</span><input data-k="'+k+'" type="number" step="any" value="'+(cur[k]??"")+'" placeholder="'+(rate?"%":"")+'"></label>';
+  const html =
+    '<h3>复盘回填 · '+(plat==="douyin"?"抖音":"小红书")+'</h3>'+
+    '<p class="muted" style="margin:0 0 8px">'+escapeHtml(proj.title||proj.slug)+' · '+track+'。'+
+    (track==="发现轨"?"主看 5 秒留存 ≥45%":"主看收藏率：方法类 ≥3%、观点类 ≥1.5%")+'</p>'+
+    '<div class="rfgrid">'+
+      f("播放","播放")+f("5秒完播","5 秒完播",true)+f("完播率","完播率",true)+
+      f("点赞","点赞")+f("评论","评论")+f("收藏","收藏")+
+      f("转发","转发")+f("涨粉","涨粉")+
+      f("收藏率","收藏率",true)+f("复访率","复访率",true)+
+      (plat==="xhs"?f("搜索来源占比","搜索来源占比",true):"")+
+    '</div>'+
+    '<textarea id="rfGood" rows="2" placeholder="这条好在哪（具体到哪一步）"></textarea>'+
+    '<textarea id="rfBad" rows="2" placeholder="这条差在哪"></textarea>'+
+    '<textarea id="rfComments" rows="2" placeholder="评论区在说什么"></textarea>'+
+    '<textarea id="rfAction" rows="2" placeholder="下一条改什么（一条就够）"></textarea>'+
+    '<div class="merr" id="rfErr"></div>'+
+    '<div class="row"><button class="tbtn" id="rfCancel">取消</button>'+
+    '<button class="tbtn primary" id="rfOk">保存并完成复盘</button></div>';
+  $("overlay").querySelector(".modal").innerHTML = html;
+  $("overlay").classList.add("show");
+  const close = ()=> { $("overlay").classList.remove("show"); restoreNewModal(); };
+  $("rfCancel").onclick = close;
+  $("rfOk").onclick = async ()=>{
+    const body = {slug: proj.slug, platform: plat, track: track};
+    $("overlay").querySelectorAll("[data-k]").forEach(inp=>{
+      const v = inp.value.trim(); if(v!=="") body[inp.getAttribute("data-k")] = v;
+    });
+    body.good = $("rfGood").value.trim();
+    body.bad = $("rfBad").value.trim();
+    body.comments = $("rfComments").value.trim();
+    body.action = $("rfAction").value.trim();
+    if(!body["播放"] && !body["收藏率"] && !body["5秒完播"]){
+      $("rfErr").textContent = "至少填播放、5 秒完播或收藏率其中一项"; return;
+    }
+    try{
+      const r = await apiPost("/api/review", body);
+      if(!r.ok) throw new Error(r.error || "保存失败");
+      $("overlay").classList.remove("show"); restoreNewModal();
+      toast("复盘已回填，阶段 07 自动完成");
+      await refreshProject(); selectStage("07","stage");
+    }catch(e){ $("rfErr").textContent = e.message; }
+  };
+}
+function restoreNewModal(){
+  $("overlay").querySelector(".modal").innerHTML =
+    '<h3>新建项目</h3><p>给这一条内容起个名字，会生成 YYYYMMDD-名称 的项目目录。</p>'+
+    '<input id="newName" placeholder="例如：中小企业怎么选AI办公平台" autocomplete="off">'+
+    '<div class="merr" id="newErr"></div>'+
+    '<div class="row"><button class="tbtn" id="newCancel">取消</button>'+
+    '<button class="tbtn primary" id="newOk">创建</button></div>';
+  $("newCancel").onclick = closeModal;
+  $("newOk").onclick = doCreate;
+  $("newName").addEventListener("keydown", e=>{ if(e.key==="Enter") doCreate(); });
+}
+async function publishProj(platform){
+  try{
+    const r = await apiPost("/api/publish", {slug: currentProject.slug, platform: platform});
+    toast(r.ok ? ("已登记发布："+(platform==="douyin"?"抖音":"小红书")+"，48 小时后回填") : "登记失败", !r.ok);
+    await refreshProject();
+  }catch(e){ toast("登记失败："+e.message, true); }
+}
+async function refreshProject(){
+  if(!currentSlug) return;
+  currentProject = await fetchJSON("/api/project/"+enc(currentSlug));
+  const st = await fetchJSON("/api/state");
+  PROJECTS = st.projects || PROJECTS; ROOT = st.root || ROOT;
+  renderLeft(); renderProject(); renderReviewBadge();
+}
+function renderReviewBadge(){
+  const n = (PROJECTS||[]).filter(p=>p.review && p.review.pending).length;
+  const el = $("reviewCount");
+  if(el) el.textContent = n ? ("("+n+")") : "";
+}
+async function openCalendar(){
+  view = "setup"; centerShow("setup");
+  const v = $("setupView");
+  v.innerHTML = '<div class="loading">加载排期…</div>';
+  try{
+    const r = await fetchJSON("/api/calendar");
+    if(r.error) throw new Error(r.error);
+    let html = '<div class="acard"><h3 style="margin-top:0">本周排期 · '+escapeHtml(r.week||"")+'</h3>';
+    if(!r.plans || !r.plans.length){
+      html += '<p class="muted">本周没有排期。用 <code>content_calendar.py plan</code> 排一条。</p>';
+    } else {
+      html += '<table style="width:100%;border-collapse:collapse;font-size:12px"><thead><tr>'+
+        ['日期','平台','轨道','选题','状态'].map(h=>'<th style="text-align:left;padding:4px 6px;border-bottom:1px solid #333">'+h+'</th>').join("")+
+        '</tr></thead><tbody>';
+      for(const p of r.plans){
+        html += '<tr><td style="padding:4px 6px">'+escapeHtml(p.date)+'</td>'+
+          '<td style="padding:4px 6px">'+(p.platform==="douyin"?"抖音":"小红书")+'</td>'+
+          '<td style="padding:4px 6px">'+escapeHtml(p.track||"")+'</td>'+
+          '<td style="padding:4px 6px">'+escapeHtml(p.title)+'</td>'+
+          '<td style="padding:4px 6px">'+escapeHtml(p.status)+'</td></tr>';
+      }
+      html += '</tbody></table>';
+    }
+    html += '<div class="btns" style="margin-top:8px"><button class="rbtn" id="calRefresh">刷新</button></div></div>';
+    v.innerHTML = html;
+    const rb = $("calRefresh"); if(rb) rb.onclick = openCalendar;
+  }catch(e){
+    v.innerHTML = '<p class="err">加载排期失败：'+escapeHtml(e.message)+'</p>';
+  }
+}
+function openReviewQueue(){
+  view = "setup"; centerShow("setup");
+  const v = $("setupView");
+  const items = (PROJECTS||[]).filter(p=>p.review && p.review.pending);
+  let html = '<div class="acard"><h3 style="margin-top:0">待复盘</h3>';
+  if(!items.length){
+    html += '<p class="muted">没有待复盘的条目。登记发布后，48 小时会出现在这里。</p>';
+  } else {
+    html += '<p class="muted">已发布但还没回填数据。数据填完，复盘阶段才会自动完成。</p>';
+    for(const p of items){
+      html += '<div class="acard" style="margin:8px 0"><b>'+escapeHtml(p.title||p.slug)+'</b>'+
+        '<div class="muted" style="margin:4px 0">'+escapeHtml(Object.keys(p.published||{}).map(k=>k==="douyin"?"抖音":"小红书").join(" / "))+'</div>'+
+        '<code style="font-size:11px">python3 scripts/review.py fill '+escapeHtml(p.slug)+' --platform '+
+        escapeHtml(Object.keys(p.published||{douyin:1})[0])+' --play ...</code>'+
+        '<div class="btns" style="margin-top:6px"><button class="rbtn accent" data-review="'+escapeHtml(p.slug)+'">回填</button><button class="rbtn" data-go="'+escapeHtml(p.slug)+'">打开项目</button></div></div>';
+    }
+  }
+  html += '<div class="btns"><button class="rbtn" id="reviewBack">返回项目</button></div></div>';
+  v.innerHTML = html;
+  v.querySelectorAll("[data-go]").forEach(b=>{
+    b.onclick = ()=>{ const slug=b.getAttribute("data-go"); selectProject(slug).then(()=>selectStage("07","stage")); };
+  });
+  v.querySelectorAll("[data-review]").forEach(b=>{
+    b.onclick = async ()=>{
+      const slug=b.getAttribute("data-review");
+      await selectProject(slug);
+      if(currentProject) openReviewForm(currentProject);
+    };
+  });
+  const back = $("reviewBack");
+  if(back) back.onclick = ()=>{ view="project"; renderProject(); };
 }
 function hooksBlock(proj){
   const hooks = (proj && proj.hooks) || [];
@@ -1009,7 +1200,7 @@ async function boot(){
   try{
     const st = await fetchJSON("/api/state");
     PROJECTS = st.projects || []; ROOT = st.root || "";
-    renderLeft();
+    renderLeft(); renderReviewBadge();
     const last = localStorage.getItem("vflow_last");
     let first = PROJECTS[0];
     if(last && PROJECTS.some(p=>p.slug===last)) first = projectBySlug(last);
@@ -1029,6 +1220,8 @@ async function boot(){
 
 /* ---------- 事件绑定 ---------- */
 $("btnGuide").onclick = openSetup;
+$("btnReview").onclick = openReviewQueue;
+$("btnCalendar").onclick = openCalendar;
 $("btnNew").onclick = openModal;
 $("btnRefresh").onclick = refresh;
 $("btnOpen").onclick = ()=> openDir(currentSlug);
@@ -1044,7 +1237,7 @@ async function refresh(){
   try{
     const st = await fetchJSON("/api/state");
     PROJECTS = st.projects || []; ROOT = st.root || ROOT;
-    renderLeft();
+    renderLeft(); renderReviewBadge();
     if(currentSlug && PROJECTS.some(p=>p.slug===currentSlug)){
       try{ currentProject = await fetchJSON("/api/project/"+enc(currentSlug)); renderProject(); }
       catch(e){ toast("刷新项目失败："+e.message, true); }

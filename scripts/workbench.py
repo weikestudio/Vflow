@@ -167,17 +167,13 @@ def render_md(text):
 def project_payload(slug, with_files=True):
     st = VS.build_state(slug)
     try:
-        old = VS.load_state(slug)
-        for k in ("final", "drafts", "hooks", "metrics", "platforms"):
-            if k in old:
-                st[k] = old[k]
-        VS.write_state(slug, st)
+        VS.write_state(slug, st)   # 和磁盘对齐，工作台看到的进度和 CLI 一致
     except OSError:
         pass
 
     if with_files:
         files, raw = {}, {}
-        for key, name, fname, skill in VS.STAGES:
+        for key, name, fname, skill, _kind in VS.STAGES:
             p = os.path.join(VS.slug_dir(slug), fname)
             if os.path.isfile(p):
                 try:
@@ -299,6 +295,14 @@ class Handler(BaseHTTPRequestHandler):
             self.send_json(assets_payload())
             return
 
+        if p == "/api/calendar":
+            try:
+                import content_calendar as CC
+                self.send_json(CC.cmd_week(type("A", (), {"offset": 0})()))
+            except Exception as e:
+                self.send_json({"error": str(e)}, 500)
+            return
+
         if p.startswith("/api/project/"):
             slug = p[len("/api/project/"):]
             d = VS.slug_dir(slug)
@@ -403,6 +407,80 @@ class Handler(BaseHTTPRequestHandler):
                 return
             VS.cmd_set(type("A", (), {"slug": slug, "stage": key,
                                       "status": status})())
+            self.send_json({"ok": True, "project": project_payload(slug)})
+            return
+
+        if p == "/api/qc":
+            slug = (body.get("slug") or "").strip()
+            if not slug or not os.path.isdir(VS.slug_dir(slug)):
+                self.send_json({"error": "项目不存在"}, 404)
+                return
+            qc = os.path.join(ROOT, "scripts", "qc.py")
+            proc = subprocess.run(
+                [sys.executable, qc, "all", slug],
+                capture_output=True, text=True, timeout=180)
+            self.send_json({"ok": proc.returncode == 0,
+                            "report": proc.stdout,
+                            "error": proc.stderr,
+                            "project": project_payload(slug)})
+            return
+
+        if p == "/api/review":
+            slug = (body.get("slug") or "").strip()
+            platform = body.get("platform")
+            if not slug or not os.path.isdir(VS.slug_dir(slug)):
+                self.send_json({"error": "项目不存在"}, 404)
+                return
+            if platform not in ("douyin", "xhs"):
+                self.send_json({"error": "平台必须是 douyin / xhs"}, 400)
+                return
+            try:
+                import review as RV
+            except ImportError:
+                self.send_json({"error": "review.py 不可用"}, 500)
+                return
+
+            def packed(**kw):
+                return type("A", (), kw)()
+
+            args = packed(
+                slug=slug, platform=platform,
+                play=body.get("play"), ret5=body.get("ret5"),
+                finish=body.get("finish"), like=body.get("like"),
+                comment=body.get("comment"), save=body.get("save"),
+                share=body.get("share"), follow=body.get("follow"),
+                search_share=body.get("search_share"),
+                collect_rate=body.get("collect_rate"),
+                revisit=body.get("revisit"),
+                good=body.get("good"), bad=body.get("bad"),
+                comments=body.get("comments"), action=body.get("action"),
+                observation=body.get("observation"), again=None,
+                hook_verdict=None, bucket=body.get("bucket"),
+                track=body.get("track"))
+            try:
+                out = RV.cmd_fill(args)
+            except Exception as e:      # 表单字段不全会抛错，回给前端
+                self.send_json({"error": "回填失败：%s" % e}, 400)
+                return
+            if out.get("error"):
+                self.send_json(out, 400)
+                return
+            self.send_json({"ok": True, "result": out,
+                            "project": project_payload(slug)})
+            return
+
+        if p == "/api/publish":
+            slug = (body.get("slug") or "").strip()
+            platform = body.get("platform")
+            if not slug or not os.path.isdir(VS.slug_dir(slug)):
+                self.send_json({"error": "项目不存在"}, 404)
+                return
+            if platform not in ("douyin", "xhs"):
+                self.send_json({"error": "平台必须是 douyin / xhs"}, 400)
+                return
+            VS.cmd_published(type("A", (), {
+                "slug": slug, "platform": platform,
+                "at": body.get("at"), "counts_as": body.get("counts_as")})())
             self.send_json({"ok": True, "project": project_payload(slug)})
             return
 

@@ -3,6 +3,11 @@
 # profile.md 只在本地；对外分发用 skills/_shared/profile-template.md。
 projects/
 profile.md
+backlog.md
+calendar.md
+claims.md
+publish.config.json
+projects/*/publish/
 prompts/
 archive/
 口播稿合集.md

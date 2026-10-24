@@ -1,5 +1,6 @@
 ---
 name: vflow-produce
+version: 1.0.0
 description: 内容制作阶段。把已定稿的口播稿做成成片——路线 A 用 HTML 幻灯片 + TTS + 录屏自动出片，路线 B 白板手绘动画，路线 C 真人出镜提词稿。也用于重做某一步（重录、重混 BGM、重烧字幕、换音色、加封面）。用户要生成视频、出成片、渲染、重录、加字幕封面时使用。产出 projects/<slug>/output/ 与 publish-copy.md。
 ---
 
@@ -142,7 +143,18 @@ trim=start=a,setpts=(PTS-STARTPTS)/b
 
 **封面最后加。** 叠加 0.5–0.7 秒即可，不要 prepend（除非有意配前导音）。
 
-**交付前跑一次** `validate_project.py`，抽帧看首帧、封面后一帧、翻页点、音视频时长是否对齐：
+**交付前跑两次**：`validate_project.py` 查工程结构，`qc.py video` 查成片本身。
+
+```bash
+python3 $VFLOW/scripts/qc.py video <slug>
+```
+
+它查：有没有音轨、分辨率 / 编码 / 像素格式、音画时长差（>0.3 秒算事故）、
+成片时长和稿子估时的差距、≥0.5 秒黑帧、≥2 秒静音、整体响度（目标 -16 LUFS）
+和真峰值。有 FAIL 就回去重做对应那一步，`--only mix` / `--only srt` 之类可以只重做局部。
+结果写进 `05-check.md` 的机器质检一节。
+
+再抽帧看首帧、封面后一帧、翻页点、音视频时长是否对齐：
 
 ```bash
 ffmpeg -ss 3 -i output/xxx.mp4 -frames:v 1 /tmp/f.png
@@ -162,7 +174,8 @@ ffmpeg -ss 3 -i output/xxx.mp4 -frames:v 1 /tmp/f.png
 
 **做**：把已定稿的口播稿做成成片，产出 `output/` 和 `publish-copy.md`。
 
-**不做**：不改口播内容（旁白锁定后改一个字，字幕、音频、时间轴全要重来）；不对没过检查的内容开工；不替使用者点发布——只出成片和文案。
+**不做**：不改口播内容（旁白锁定后改一个字，字幕、音频、时间轴全要重来）；不对没过检查的内容开工；
+不替使用者点发布——人工和半自动都停在"你亲手点"，只有显式开 auto 且质检全过才尝试自动化。
 
 **单独被调用时**：`05-check.md` 三层没过就停，说明原因并回 `vflow-check`。`03-script.md` 没定稿同样不许开工。
 
@@ -170,10 +183,15 @@ ffmpeg -ss 3 -i output/xxx.mp4 -frames:v 1 /tmp/f.png
 
 ## 收尾
 
-1. 成片拷到 `projects/<slug>/output/`
-2. **停一次**，让使用者看过再发布
-3. 写 `publish-copy.md`：**抖音版和小红书版分开写**，标题、正文、标签各不同。不要把口播稿当文案粘上去
-4. 需要时刷新仪表盘：`$VFLOW/scripts/build_dashboard.py`
+1. 成片拷到 `projects/<slug>/output/`，文件名以 `final-` 开头（这是唯一交付指针）
+2. `qc.py video <slug>` 过一遍，FAIL 清零
+3. **停一次**，让使用者看过再发布——到这里流水线就结束了，**不替使用者点发布**
+4. 写 `publish-copy.md`：**抖音版和小红书版分开写**，标题、正文、标签各不同。不要把口播稿当文案粘上去；封面用 `qc.py cover` 出缩略图看一眼
+5. 生成发布包：`python3 $VFLOW/scripts/package.py build <slug> --zip`。质检没过会拒绝生成
+6. 发布：`python3 $VFLOW/scripts/publish.py queue <slug> --platform douyin` 再 `run`。
+   默认人工（只给包）；assisted 会打开创作页并复制文案，但**不代点发布**；auto 要显式开启且质检全过
+7. 发完登记：`python3 $VFLOW/scripts/publish.py done <slug> --platform douyin`（会自动调 review.py published）
+8. 需要时刷新仪表盘：`$VFLOW/scripts/build_dashboard.py`
 
 ---
 

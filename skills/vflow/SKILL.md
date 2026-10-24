@@ -1,5 +1,6 @@
 ---
 name: vflow
+version: 1.0.0
 description: 中文内容创作流水线主控入口。做短视频/图文内容的全链路时使用——选题、对标调研、结构框架、口播逐字稿、标题封面开头、发布前检查、生成成片、发布文案、数据复盘。首次使用、还没有 profile.md 时，先引导使用者建账号设定和声音档案。用户提到「做条视频」「开个选题」「写剧本」「口播稿」「封面标题」「发布前检查」「生成视频」「成片」「数据复盘」「第一次怎么用」「刚装好」，或想从零跑一条内容时使用。负责判断当前处在哪一阶段、调用对应阶段能力、并把产出落到数据目录下。
 ---
 
@@ -58,7 +59,10 @@ slug 规则：`YYYYMMDD-中文短名`，例如 `20261022-skill是什么`。
 6. **不贩卖焦虑。** 不写"不学就完了""你会被淘汰"。减焦虑的正确做法是拆掉前提，不是给安慰。
 7. **写稿前读声音档案。** 照实测数字写，别照规则写——规则写出来像 AI，数字写出来像你。
 8. **一条数据不改默认。** 观察先记进台账，攒够三条可比证据再升级。反例出现就降级。
-9. **不自动发布。** 流水线终点是可发布包，不是替使用者点发送。这条是安全边界，也是对外可讲的信任点。
+9. **默认不自动发布。** 流水线终点是可发布包；发布默认为人工，assisted 只预填不代点，auto 需显式开启且质检全过。这条是安全边界，也是对外可讲的信任点。
+10. **脚本先过机器自检。** 写稿后跑 `script_check.py`；B 拆解型没有可保存物（判断标准/对照表/决策树）不许进制作。
+11. **封面和成片要过机器质检。** 封面在检查阶段过 `qc.py cover`，成片在制作收尾过 `qc.py video`。人工看片照旧，但机器先兜一道。
+12. **发布后 48 小时必复盘。** 登记发布（`review.py published`）后，没回填数据复盘的，项目就不算完。复盘不发生，风格卡、钩子库、台账全是空转。
 
 ---
 
@@ -72,6 +76,10 @@ slug 规则：`YYYYMMDD-中文短名`，例如 `20261022-skill是什么`。
 | 钩子库 | `assets/hooks.md` | 用了就记，复盘回填数据 | 包装阶段挑开头 |
 | 敏感词表 | `assets/wordlist.md` | 踩到坑就往 `mine` 层加 | 检查阶段先扫一遍 |
 | 证据台账 | `ledger/evidence.md` | 复盘时记观察 | 决定要不要改 profile |
+| 选题池 | `backlog.md` | 有想法就记，毙掉写原因 | 开工前先从这里挑 |
+| 结构库 | `assets/structures.md` | 写稿前选模板 | 剧本阶段第一步 |
+| 声明台账 | `claims.md` | 发前登记数字来源 | 检查阶段核事实 |
+| 内容日历 | `calendar.md` | 排期与系列 | 决定下一条做什么 |
 
 常用命令：
 
@@ -82,6 +90,19 @@ python3 scripts/risk_scan.py projects/<slug>/     # 敏感词扫描
 python3 scripts/similarity.py <原稿> <改写稿>      # 二创越界没有
 python3 scripts/hooks.py best                     # 哪类钩子对我有效
 python3 scripts/ledger.py list                    # 攒了几条证据
+python3 scripts/review.py pending                  # 谁该复盘了（发布满 48h）
+python3 scripts/review.py fill <slug> --platform douyin --play 12000 --ret5 45 --finish 28
+python3 scripts/review.py stats --bucket B         # 同桶均值
+python3 scripts/qc.py all <slug>                   # 封面 + 成片机器质检
+python3 scripts/backlog.py list                    # 选题池
+python3 scripts/doctor.py                          # 环境自检（装完先跑一次）
+python3 scripts/script_check.py <slug>             # 口播稿自检（留存/可保存物/CTA）
+python3 scripts/claims.py scan <slug>              # 对外数字有没有登记来源
+python3 scripts/qc.py package <slug>               # 发布包自检（关键词矩阵/AI 声明/导流）
+python3 scripts/package.py build <slug> --zip      # 一键发布包
+python3 scripts/publish.py queue <slug> --platform douyin
+python3 scripts/content_calendar.py week           # 本周排期
+python3 scripts/version.py check                   # 版本一致性
 ```
 
 ---
@@ -99,6 +120,8 @@ python3 scripts/ledger.py list                    # 攒了几条证据
    **这步别省**——没有样本，后面写出来的稿子就没有"像不像他"的判据，只能靠规则，而规则写出来像 AI。
 3. **开第一条**：`bash $VFLOW/scripts/new_project.sh "选题短名"`
 
+装完或换机器先跑一次 `python3 $VFLOW/scripts/doctor.py`：依赖缺什么、技能引用有没有死链、状态文件和磁盘一不一致，一条命令全列出来。
+
 看进度：`python3 $VFLOW/scripts/setup.py --check`，或打开工作台看引导卡。
 
 **判断顺序**：profile.md 不在 → 引导填；在但没填完（还是模板）→ 提示补完再开工；都齐了 → 直接进阶段。
@@ -113,7 +136,7 @@ python3 scripts/ledger.py list                    # 攒了几条证据
 | 2 结构 | `02-outline.md` | `vflow-outline` | ⏸ 停 |
 | 3 剧本 | `03-script.md` | `vflow-script` | |
 | 4 包装 | `04-package.md` | `vflow-package` | |
-| 5 检查 | `05-check.md` | `vflow-check` | ⛔ 不过不许制作 |
+| 5 检查 | `05-check.md`（含机器质检节） | `vflow-check` | ⛔ 不过不许制作 |
 | 6 制作 | `output/` + `publish-copy.md` | `vflow-produce` | ⏸ 停 |
 | 7 复盘 | `06-review.md` | `vflow-review` | |
 
@@ -130,7 +153,7 @@ python3 scripts/ledger.py list                    # 攒了几条证据
 
 | | 抖音 | 小红书 |
 |---|---|---|
-| 画幅 | 9:16 1080×1920 | 9:16 竖版或 3:4 |
+| 画幅 | 9:16 1080×1920 | 9:16 竖版或 3:4（1080×1440） |
 | 前 3 秒 | 生死线，钩子必须硬 | 同样重要，但可稍缓 |
 | 标题 | ≤20 字，口语、带冲突 | ≤20 字，可带 emoji，重搜索词 |
 | 封面 | 大字压屏，一眼看懂 | 精致度决定点击，标题要美 |

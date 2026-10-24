@@ -15,12 +15,17 @@ import json
 import os
 import re
 import subprocess
+import sys
 from datetime import datetime
 
-ROOT = os.path.expanduser("~/Vflow")
+ROOT = os.path.abspath(
+    os.environ.get("VFLOW_HOME") or os.path.expanduser("~/Vflow"))
 PROJECTS = os.path.join(ROOT, "projects")
 OUT_DIR = os.path.join(ROOT, "dashboard")
 SCRIPT_DIR = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, SCRIPT_DIR)
+
+import vflow_state as VS          # noqa: E402  项目状态机（唯一真源）
 
 # ── 阶段定义 ──────────────────────────────────────────────────
 STAGES = [
@@ -33,9 +38,6 @@ STAGES = [
     {"key": "03", "name": "剧本", "file": "03-script.md",
      "skills": "vflow-script",
      "next": "写口播逐字稿，查流失点"},
-    {"key": "03b", "name": "提词稿", "file": "03b-teleprompter.md",
-     "skills": "露脸口播专用",
-     "next": "标换气点与分镜，准备拍摄"},
     {"key": "04", "name": "包装", "file": "04-package.md",
      "skills": "vflow-package",
      "next": "出标题 / 封面 / 开头，两端各一版"},
@@ -55,7 +57,6 @@ EMPTY_MARKERS = {
     "01-topic.md": ["（说清楚这条讲什么", "- [ ] 做\n- [ ] 不做"],
     "02-outline.md": ["（8 页 ≈ 90–110 秒）", "| 1 | 钩子 |  |  |"],
     "03-script.md": ["（0–X 秒）", "（中文口播 200 字"],
-    "03b-teleprompter.md": ["**钩子（0–3 秒）**\n> \n", "（目标 60–90 秒）"],
     "04-package.md": ["- **文字标题**（≤20 字）：\n", "1. \n2. \n3. "],
     "05-check.md": ["- **检查时间**：\n"],
     "06-review.md": ["- **发布日期**：\n"],
@@ -68,18 +69,6 @@ def read(path):
             return f.read()
     except OSError:
         return ""
-
-
-def is_filled(name, path):
-    if not os.path.exists(path):
-        return False
-    txt = read(path)
-    if len(txt.strip()) < 120:
-        return False
-    for m in EMPTY_MARKERS.get(name, []):
-        if m in txt:
-            return False
-    return True
 
 
 def grab(pattern, txt, group=1, default=""):
@@ -122,12 +111,6 @@ def meta_for(name, txt):
         out["版本"] = grab(r"\*\*版本\*\*：(.+)", txt)
         out["字数"] = grab(r"\*\*字数\*\*：(.+)", txt)
         out["状态"] = grab(r"\*\*状态\*\*：(.+)", txt)
-    elif name == "03b-teleprompter.md":
-        out["总时长"] = grab(r"\*\*总时长\*\*：(.+)", txt)
-        out["提词速度"] = grab(r"\*\*提词速度\*\*：(.+)", txt)
-        rig = grab(r"\*\*机位 / 背景\*\*：(.+)", txt)
-        if rig:
-            out["机位背景"] = rig[:60]
     elif name == "04-package.md":
         out["抖音标题"] = grab(r"\*\*文字标题（作品文案[^）]*）\*\*：\n\s*> (.+)", txt)
         out["抖音封面"] = grab(r"\*\*封面标题（压屏大字[^）]*）\*\*：\n\s*> (.+)", txt)
@@ -147,27 +130,38 @@ def meta_for(name, txt):
     return {k: v for k, v in out.items() if v}
 
 
-def stage_state(s, pdir):
-    if s["key"] == "06":  # 成片看 output/
-        vids = sorted(glob.glob(os.path.join(pdir, "output", "*.mp4")))
-        if not vids:
-            return "missing", {}, ""
-        v = vids[-1]
-        dur, w, h = probe(v)
+def stage_state(s, pdir, st):
+    key = s["key"]
+    row = st["stages"].get(key, {})
+    status = row.get("status", "empty")
+    state = {"done": "done", "wip": "template", "skip": "skip"}.get(
+        status, "missing")
+    if key == "06":
+        v = st.get("final", {}).get("video")
+        path = os.path.join(pdir, v) if v else ""
+        if not path or not os.path.isfile(path):
+            return state, {}, path
+        dur, w, h = probe(path)
         meta = {
-            "文件": os.path.basename(v),
+            "文件": os.path.basename(path),
             "时长": "%.1f 秒" % dur,
             "分辨率": ("%s×%s" % (w, h)) if w else "",
-            "大小": "%.1f MB" % (os.path.getsize(v) / 1024 / 1024),
+            "大小": "%.1f MB" % (os.path.getsize(path) / 1024 / 1024),
         }
-        return "done", meta, v
-    name = s["file"]
-    path = os.path.join(pdir, name)
-    if not os.path.exists(path):
-        return "missing", {}, ""
-    if not is_filled(name, path):
-        return "template", {}, path
-    return "done", meta_for(name, read(path)), path
+        return "done", meta, path
+    if key == "07":
+        nums = VS.review_numbers(os.path.basename(pdir))
+        meta = {}
+        for plat, vals in nums.items():
+            if "播放" in vals:
+                meta[plat] = "播放 %d" % vals["播放"]
+            if "完播率" in vals:
+                meta[plat + "完播"] = "%g%%" % vals["完播率"]
+        return state, meta, os.path.join(pdir, s["file"])
+    path = os.path.join(pdir, s["file"])
+    if not os.path.isfile(path):
+        return state, {}, ""
+    return state, meta_for(s["file"], read(path)), path
 
 
 def next_action(states):
@@ -181,27 +175,31 @@ def scan_project(pdir):
     slug = os.path.basename(pdir)
     m = re.match(r"(\d{8})-(.+)", slug)
     date, title = (m.group(1), m.group(2)) if m else ("", slug)
+    st = VS.build_state(slug)
     states = {}
     for s in STAGES:
-        st, meta, path = stage_state(s, pdir)
-        states[s["key"]] = {"state": st, "meta": meta, "path": path}
+        state, meta, path = stage_state(s, pdir, st)
+        states[s["key"]] = {"state": state, "meta": meta, "path": path}
     done_n = sum(1 for k in states if states[k]["state"] == "done")
     topic = read(os.path.join(pdir, "01-topic.md"))
-    # 01 没填但有成片 = 链路验证用的测试项目，不算真选题
     kind = "real" if states["01"]["state"] == "done" else (
         "test" if states["06"]["state"] == "done" else "blank")
+    published = st.get("published", {})
     return {
         "slug": slug,
         "date": date,
         "title": title,
         "kind": kind,
         "one_liner": (grab(r"\*\*改后命题\*\*：(.+)", topic)
-                      or grab(r"## 一句话选题\n+(.+)", topic)),
+                      or grab(r"## 一句话(?:选题)?\n+\n?(.+)", topic)),
         "states": states,
         "done_n": done_n,
         "total_n": len(STAGES),
         "progress": round(done_n / len(STAGES) * 100),
         "next": next_action(states),
+        "current": st.get("current", ""),
+        "published": published,
+        "pending_review": bool(published) and not st.get("review", {}).get("has_data"),
         "mtime": os.path.getmtime(pdir),
     }
 
@@ -229,13 +227,14 @@ def pace(line):
     return clean(re.sub(r"[（）]", "", line), 26) or "待定"
 
 
-def studio_summary():
-    txt = read(os.path.join(ROOT, "STUDIO.md"))
+def studio_profile():
+    """账号概览。有 profile.md 就读取，没有就返回空字段让模板显示占位。"""
+    txt = read(os.path.join(ROOT, "profile.md"))
     return {
         "账号名": clean(grab(r"\*\*账号名\*\*：(.+)", txt), 20) or "（未填）",
         "当前阶段": clean(grab(r"\*\*阶段\*\*：(.+)", txt), 30) or "（未填）",
-        "内容主线": clean(grab(r"围绕一句话：\*\*(.+)", txt), 30) or "（未填）",
-        "出镜方式": clean(grab(r"\*\*出镜方式：(.+)", txt), 30) or "（未填）",
+        "内容主线": clean(grab(r"围绕一句话：\*\*(.+?)\*\*", txt), 30) or "（未填）",
+        "出镜方式": clean(grab(r"\*\*出镜方式\*\*：(.+)", txt), 30) or "（未填）",
         "发布节奏": pace(grab(r"\*\*发布节奏\*\*：([^\n]+)", txt)),
         "主受众": clean(grab(r"\*\*主受众\*\*：(.+)", txt), 56) or "（未填）",
     }
@@ -255,12 +254,13 @@ def main():
         "stages": STAGES,
         "projects": projs,
         "active": active["slug"] if active else "",
-        "studio": studio_summary(),
+        "studio": studio_profile(),
         "stats": {
             "total": len(real),
             "shipped": sum(1 for p in real if p["states"]["06"]["state"] == "done"),
             "in_progress": sum(1 for p in real if 0 < p["done_n"] < p["total_n"]),
             "reviewed": sum(1 for p in real if p["states"]["07"]["state"] == "done"),
+            "pending_review": sum(1 for p in real if p["pending_review"]),
             "test": sum(1 for p in projs if p["kind"] != "real"),
         },
     }
